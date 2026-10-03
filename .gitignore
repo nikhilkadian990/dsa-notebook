@@ -27,3 +27,6 @@ GoogleService-Info.plist
 # build artifacts
 public/llms.md
 public/n/
+
+# build output (deployed from dist/)
+dist/
