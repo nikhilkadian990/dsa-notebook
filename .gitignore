@@ -1,0 +1,29 @@
+# dependencies
+node_modules/
+
+# firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# os / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# local secrets (never commit)
+*.p12
+*.pem
+service-account*.json
+google-services.json
+GoogleService-Info.plist
+.env
+.env.*
+!.env.example
+
+# build artifacts
+public/llms.md
+public/n/

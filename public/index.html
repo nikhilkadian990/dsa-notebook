@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>DSA Notebook</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="description"
+    content="A personal DSA notebook: write problem notes, connect patterns, search instantly, revise with active recall and spaced repetition.">
+  <meta name="theme-color" content="#0a100e">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+  <canvas id="sky" width="1272" height="588" aria-hidden="true"></canvas>
+  <div id="scrim" aria-hidden="true"></div>
+
+  <div id="app">
+    <!-- ===================== toolbar ===================== -->
+    <header id="top">
+      <button class="ib only-narrow" id="bfiles" title="Notebooks" aria-label="Notebooks">☰</button>
+      <b class="brand">DSA Notebook</b>
+      <nav class="nav" aria-label="Main views">
+        <button class="nav-b" data-v="dashboard" title="Dashboard">Home</button>
+        <button class="nav-b on" data-v="editor" title="Notebooks (Alt+1)">Notebooks</button>
+        <button class="nav-b" data-v="tags" title="Tags">#</button>
+        <button class="nav-b" data-v="revise" title="Revision">Revise</button>
+      </nav>
+      <span class="sep"></span>
+      <div class="tgrp" role="group" aria-label="Insert">
+        <button class="b" id="bh" title="Heading (Alt+H)">Heading</button>
+        <button class="b" id="bc" title="Code block (Alt+C)">Code</button>
+        <button class="b" id="bl" title="Add link">Link</button>
+        <button class="b" id="bi" title="Image (Alt+I)">Image</button>
+        <button class="b" id="bv" title="Visual block (Alt+V)">Visual</button>
+      </div>
+      <span class="sp"></span>
+      <button class="b" id="bai" title="Generate a ready-to-copy AI prompt for this note">✦ AI</button>
+      <button class="b" id="brv" title="Revision">↻ Review</button>
+      <button class="b" id="bf" title="Find (Ctrl+F)">Find</button>
+      <button class="b only-wide" id="bcp" title="Command palette (Ctrl+K)">⌘K</button>
+      <button class="b only-wide" id="bim" title="Import (Alt+O)">Import</button>
+      <button class="b only-wide" id="bex" title="Export / backup (Alt+E)">Export</button>
+      <button class="b pri" id="bs" title="Force sync (Ctrl+S)">Sync</button>
+      <span class="pill warn" id="st" title="Sync status">● connecting…</span>
+      <button class="ib only-narrow" id="boutline" title="Outline" aria-label="Outline">≣</button>
+    </header>
+
+    <!-- ===================== notebooks ===================== -->
+    <nav id="files" aria-label="Notebooks">
+      <div class="ph">
+        <span class="grp"><button class="ib" id="bcf" title="Collapse sidebar (Alt+1)">«</button>Notebooks</span>
+        <span class="grp">
+          <button class="b sm" id="bn" title="New notebook (Alt+N)">+ New</button>
+          <button class="b sm" id="bng" title="New subject folder">+ Folder</button>
+        </span>
+      </div>
+      <div id="flist"></div>
+      <button id="fopen" title="Show notebooks (Alt+1)">»</button>
+      <div class="pad small dim hint">
+        Ctrl+K palette · Ctrl+F search · Alt+N new · Alt+C code · Alt+H heading ·
+        Alt+1/2/3 sidebars · Alt+↑/↓ headings
+      </div>
+    </nav>
+
+    <!-- ===================== main ===================== -->
+    <main id="main">
+      <div id="sb" class="hidden">
+        <input id="sq" placeholder="Search every notebook — Enter: next, Shift+Enter: previous, Esc: close"
+          aria-label="Search notebooks">
+        <span id="scount" class="dim">0/0</span>
+        <button class="b sm" id="sx">Close</button>
+      </div>
+      <div id="sresults" class="hidden"></div>
+      <div id="metabar"></div>
+      <div id="docWrap">
+        <div id="doc"><div id="page"></div></div>
+      </div>
+      <div id="view" class="hidden"></div>
+    </main>
+
+    <!-- ===================== outline ===================== -->
+    <aside id="outline" aria-label="Outline">
+      <div class="ph">
+        <span>Outline</span>
+        <button class="ib" id="bco" title="Collapse outline (Alt+2)">»</button>
+      </div>
+      <div id="olist"></div>
+      <button id="oopen" title="Show outline (Alt+2)">«</button>
+    </aside>
+  </div>
+
+  <!-- ===================== visual block dialog ===================== -->
+  <dialog id="vd">
+    <h3>Visual block</h3>
+    <p class="dim small">
+      Paste HTML + CSS + JavaScript, or SVG — or import a file such as
+      Sorting_Lab.html. It runs inside a sandboxed iframe and its source stays in the notebook.
+    </p>
+    <textarea id="vc" spellcheck="false"></textarea>
+    <div class="row">
+      <span class="sp small dim" id="vn">Paste code, or import a file</span>
+      <button class="b" id="vif" title="Import an .html/.svg/.css/.js file as this visual">Import file…</button>
+      <button class="b" id="vx">Cancel</button>
+      <button class="b pri" id="vo">Run (Ctrl+Enter)</button>
+    </div>
+  </dialog>
+
+  <input type="file" id="imgf" accept="image/*" class="hidden">
+  <input type="file" id="visf" accept=".html,.htm,.svg,.css,.js" class="hidden">
+  <input type="file" id="impf" accept=".md,.txt,.html,.htm,text/markdown,text/plain" multiple class="hidden">
+  <div id="toast" class="hidden"></div>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+
+</html>

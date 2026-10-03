@@ -1,0 +1,17 @@
+{
+  "name": "dsa-notebook",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Online-first DSA learning/revision notebook (Firebase + Firestore)",
+  "scripts": {
+    "serve": "npx firebase serve --only hosting",
+    "deploy": "npx firebase deploy --only hosting,firestore:rules",
+    "emulators": "npx firebase emulators:start --only firestore,auth",
+    "sync-public": "node scripts/sync-public.mjs",
+    "test": "node --test test/"
+  },
+  "devDependencies": {
+    "firebase-tools": "^13.0.0"
+  }
+}

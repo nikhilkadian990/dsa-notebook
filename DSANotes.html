@@ -1,0 +1,1844 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+    <meta charset="utf-8">
+    <title>DSA Notebook</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <style>
+      /* ===================== THEME (night forest) ===================== */
+      :root {
+        color-scheme: dark;
+        --bg0: #0a100e;
+        --bg1: #101916;
+        --bg2: #16231f;
+        --bg3: #1d2e29;
+        --line: #2e433b;
+        --tx: #dbe6df;
+        --dim: #93a89e;
+        --acc: #e8b86f;
+        --blue: #86b0e3;
+        --grn: #82cc9d;
+        --kw: #8db7ec;
+        --str: #e6c47e;
+        --num: #e0a077;
+        --fn: #8fd8aa;
+        --ty: #c9aaeb;
+        --cm: #869b90;
+        --mono:
+          "JetBrains Mono", "Fira Code", Consolas, "Courier New", monospace;
+        --ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: var(--bg0);
+        color: var(--tx);
+        font: 14px var(--ui);
+      }
+      #sky {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+      }
+      #app {
+        position: relative;
+        z-index: 1;
+        height: 100%;
+        display: grid;
+        grid-template-columns: 230px 1fr 220px;
+        grid-template-rows: 46px 1fr;
+      }
+      .hidden {
+        display: none !important;
+      }
+      .sp {
+        flex: 1;
+      }
+      .dim {
+        color: var(--dim);
+      }
+      .pad {
+        padding: 10px 12px;
+      }
+      .small {
+        font-size: 12px;
+      }
+      :focus-visible {
+        outline: 2px solid var(--blue);
+        outline-offset: 1px;
+      }
+      /* ---- toolbar ---- */
+      #top {
+        grid-column: 1/4;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 12px;
+        background: rgba(10, 16, 14, 0.94);
+        border-bottom: 1px solid var(--line);
+      }
+      .brand {
+        color: var(--acc);
+        margin-right: 10px;
+        font-size: 15px;
+      }
+      .b {
+        background: var(--bg3);
+        color: var(--tx);
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        padding: 5px 11px;
+        cursor: pointer;
+        font: inherit;
+      }
+      .b:hover {
+        border-color: var(--acc);
+      }
+      .b.sm {
+        padding: 2px 8px;
+        font-size: 12px;
+      }
+      .b.pri {
+        background: #2d5a45;
+        border-color: #4a8a6c;
+        color: #f0f8f3;
+      }
+      .pill {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 4px 11px;
+        cursor: pointer;
+        color: var(--dim);
+        background: var(--bg1);
+      }
+      .pill.warn {
+        color: var(--acc);
+        border-color: #7a6238;
+      }
+      .pill.ok {
+        color: var(--grn);
+        border-color: #3c6e52;
+      }
+      /* ---- side panels ---- */
+      #files,
+      #outline {
+        background: rgba(16, 25, 22, 0.92);
+        overflow: auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      #files {
+        border-right: 1px solid var(--line);
+      }
+      #outline {
+        border-left: 1px solid var(--line);
+      }
+      .ph {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 8px;
+        color: var(--dim);
+        font-weight: 600;
+      }
+      .ph .grp {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+      }
+      #flist {
+        flex: 1;
+      }
+      .fi {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        padding: 6px 8px 6px 12px;
+        cursor: pointer;
+        border-left: 3px solid transparent;
+      }
+      .fi:hover,
+      .oi:hover {
+        background: var(--bg2);
+      }
+      .fi.on {
+        background: var(--bg3);
+        border-left-color: var(--acc);
+      }
+      .fi .nm {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .ib {
+        background: none;
+        border: 0;
+        color: var(--dim);
+        cursor: pointer;
+        padding: 2px 5px;
+        font-size: 13px;
+      }
+      .ib:hover {
+        color: var(--acc);
+      }
+      .oi {
+        padding: 5px 12px;
+        cursor: pointer;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        border-left: 3px solid transparent;
+      }
+      .oi:hover {
+        border-left-color: var(--acc);
+      }
+      /* ---- folder tree (IDE-style explorer) ---- */
+      .gh {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        padding: 5px 6px;
+        border-left: 3px solid transparent;
+        cursor: pointer;
+        color: var(--tx);
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      .gh:hover {
+        background: var(--bg2);
+      }
+      .gh .tw {
+        flex: none;
+        width: 14px;
+        text-align: center;
+        color: var(--dim);
+      }
+      .gh .gnm {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 600;
+      }
+      .fi.ind {
+        padding-left: 26px;
+      }
+      .empty-note {
+        padding: 3px 8px 3px 26px;
+        color: var(--dim);
+        font-style: italic;
+        font-size: 12px;
+      }
+      /* ---- collapsible sidebars: a closed panel leaves a slim 26px rail with a reopen button ---- */
+      #files.closed .ph,
+      #files.closed #flist,
+      #files.closed .pad {
+        display: none;
+      }
+      #outline.closed .ph,
+      #outline.closed #olist {
+        display: none;
+      }
+      #fopen,
+      #oopen {
+        display: none;
+        flex: 1;
+        width: 100%;
+        border: 0;
+        background: none;
+        color: var(--dim);
+        cursor: pointer;
+        align-items: flex-start;
+        justify-content: center;
+        padding-top: 12px;
+        font: 15px var(--ui);
+      }
+      #files.closed #fopen,
+      #outline.closed #oopen {
+        display: flex;
+      }
+      #fopen:hover,
+      #oopen:hover {
+        color: var(--acc);
+      }
+      /* ---- document ---- */
+      #main {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        min-width: 0;
+      }
+      #doc {
+        flex: 1;
+        overflow: auto;
+        padding: 16px;
+      }
+      #page {
+        max-width: 880px;
+        margin: 0 auto;
+        padding: 18px 26px 40vh;
+        background: rgba(16, 25, 22, 0.94);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        min-height: 100%;
+      }
+      #sb {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 8px 16px;
+        background: rgba(10, 16, 14, 0.94);
+        border-bottom: 1px solid var(--line);
+      }
+      #sq {
+        flex: 1;
+        background: var(--bg0);
+        color: var(--tx);
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        padding: 5px 9px;
+        font: inherit;
+      }
+      ::placeholder {
+        color: #7a9086;
+      }
+      /* text block = transparent textarea over a highlighted mirror (<pre>); metrics must match exactly */
+      .tb {
+        position: relative;
+      }
+      .tb pre,
+      .tb textarea {
+        font: 14px/1.65 var(--mono);
+        padding: 2px 4px;
+        margin: 0;
+        border: 0;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        tab-size: 2;
+      }
+      .tb pre {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        overflow: hidden;
+        color: var(--tx);
+      }
+      .tb textarea {
+        position: relative;
+        display: block;
+        width: 100%;
+        resize: none;
+        overflow: hidden;
+        background: transparent;
+        color: transparent;
+        caret-color: var(--acc);
+        outline: 0;
+        min-height: 1.65em;
+      }
+      .tb textarea::selection {
+        background: rgba(134, 176, 227, 0.4);
+      }
+      .l {
+        min-height: 1.65em;
+      }
+      .c {
+        background: #0b1411;
+        box-shadow: inset 2px 0 var(--grn);
+      }
+      .fe {
+        color: var(--dim);
+      }
+      .k {
+        color: var(--kw);
+      }
+      .s {
+        color: var(--str);
+      }
+      .n {
+        color: var(--num);
+      }
+      .f {
+        color: var(--fn);
+      }
+      .t {
+        color: var(--ty);
+      }
+      .m {
+        color: var(--cm);
+        font-style: italic;
+      }
+      .mk {
+        color: var(--acc);
+      }
+      .q {
+        color: var(--dim);
+        font-style: italic;
+      }
+      .ic {
+        color: var(--str);
+        background: #0b1411;
+      }
+      .bd {
+        font-weight: 700;
+        color: #fff;
+      }
+      .it {
+        font-style: italic;
+        color: #cfe3d7;
+      }
+      .hd {
+        display: block;
+        width: 100%;
+        margin-top: 12px;
+        padding: 6px 4px 3px;
+        background: transparent;
+        border: 0;
+        border-bottom: 1px solid var(--line);
+        color: var(--acc);
+        font: 700 16px var(--mono);
+        outline: 0;
+      }
+      .hd:focus {
+        border-bottom-color: var(--acc);
+      }
+      .blk {
+        margin: 10px 0;
+      }
+      .bar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px;
+        background: var(--bg2);
+        border: 1px solid var(--line);
+        border-radius: 6px 6px 0 0;
+        font-size: 12px;
+        color: var(--dim);
+      }
+      .blk img {
+        display: block;
+        max-width: 100%;
+        border: 1px solid var(--line);
+        border-top: 0;
+      }
+      .vw {
+        resize: vertical;
+        overflow: hidden;
+        min-height: 80px;
+        border: 1px solid var(--line);
+        border-top: 0;
+        background: #0f1815;
+      }
+      .vw iframe {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+      /* ---- dialogs ---- */
+      dialog {
+        background: var(--bg1);
+        color: var(--tx);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        width: min(820px, 92vw);
+        padding: 16px;
+      }
+      dialog::backdrop {
+        background: rgba(0, 0, 0, 0.65);
+      }
+      dialog h3 {
+        margin: 0 0 8px;
+        color: var(--acc);
+      }
+      dialog label {
+        display: block;
+        margin: 6px 0;
+      }
+      #vc {
+        width: 100%;
+        height: 52vh;
+        background: var(--bg0);
+        color: var(--tx);
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        padding: 8px;
+        font: 13px/1.5 var(--mono);
+        tab-size: 2;
+      }
+      .row {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      #toast {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        z-index: 9;
+        background: var(--bg3);
+        border: 1px solid var(--acc);
+        border-radius: 6px;
+        padding: 8px 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="sky" width="1272" height="588"></canvas>
+    <div id="app" style="grid-template-columns: 230px 1fr 220px;">
+      <header id="top">
+        <b class="brand">DSA Notebook</b>
+        <button class="b" id="bh" title="Alt+H">Heading</button>
+        <button class="b" id="bi" title="Alt+I">Image</button>
+        <button class="b" id="bv" title="Alt+V">Visual</button>
+        <button class="b" id="bc" title="Alt+C — inserts the ``` fence pair at the cursor">
+          Code
+        </button>
+        <button class="b" id="bf" title="Ctrl+F">Find</button>
+        <span class="sp"></span>
+        <button class="b" id="bim" title="Alt+O">Import</button>
+        <button class="b" id="bex" title="Alt+E">Export</button>
+        <button class="b pri" id="bs" title="Ctrl+S">Save</button>
+        <span class="pill warn" id="st" title="Changes are written directly into DSANotes.html">● saving…</span>
+      </header>
+      <nav id="files" class="">
+        <div class="ph">
+          <span class="grp"><button class="ib" id="bcf" title="Collapse sidebar (Alt+1)">
+              «</button>Notebooks</span><span class="grp"><button class="b sm" id="bn" title="Alt+N — tip: name it DSA/Stacks.md to file it inside a folder">
+              + New</button><button class="b sm" id="bng" title="New subject folder, e.g. DSA or DBMS">
+              + Folder
+            </button></span>
+        </div>
+        <div id="flist"></div>
+        <button id="fopen" title="Show notebooks (Alt+1)">»</button>
+        <div class="pad small dim">
+          Ctrl+S save · Alt+N new · Alt+C code · Alt+H heading · Alt+I image ·
+          Alt+V visual · Ctrl+F find · F3 next · Alt+↑/↓ outline · Alt+1/2/3
+          sidebars
+        </div>
+      </nav>
+      <main id="main">
+        <div id="sb" class="hidden">
+          <input id="sq" placeholder="Find in this notebook — Enter: next, Shift+Enter: previous, Esc: close"><span id="sc" class="dim">0/0</span><button class="b sm" id="sx">Close</button>
+        </div>
+        <div id="doc"><div id="page"></div></div>
+      </main>
+      <aside id="outline" class="">
+        <div class="ph">
+          <span>Outline</span><button class="ib" id="bco" title="Collapse sidebar (Alt+2)">
+            »
+          </button>
+        </div>
+        <div id="olist"></div>
+        <button id="oopen" title="Show outline (Alt+2)">«</button>
+      </aside>
+    </div>
+    <dialog id="vd">
+      <h3>Visual block</h3>
+      <p class="dim small">
+        Paste HTML + CSS + JavaScript, or SVG — or import a file such as
+        Sort_Lab.html. It runs inside a sandboxed iframe.
+      </p>
+      <textarea id="vc" spellcheck="false"></textarea>
+      <div class="row">
+        <span class="sp small dim" id="vn">Loaded Sorting Lab.html — press Run to insert it as a visual block</span><button class="b" id="vif" title="Import an .html/.svg/.css/.js file as this visual">
+          Import file…</button><button class="b" id="vx">Cancel</button><button class="b pri" id="vo">Run (Ctrl+Enter)</button>
+      </div>
+    </dialog>
+    <dialog id="ed">
+      <h3>Export all notebooks</h3>
+      <label><input type="radio" name="fm" value="md" checked=""> Markdown
+        (.md)</label>
+      <label><input type="radio" name="fm" value="txt"> Plain text (.txt)</label>
+      <label><input type="checkbox" id="ei"> Include images (embedded data)</label>
+      <label><input type="checkbox" id="ev"> Include visual source code</label>
+      <p class="dim small">
+        Images and visuals are left out unless ticked. One file per notebook; in
+        Chromium you pick a destination folder.
+      </p>
+      <div class="row" style="justify-content: flex-start">
+        <button class="b sm" id="ehc">
+          Download a standalone copy of this notebook (.html)
+        </button>
+      </div>
+      <div class="row">
+        <button class="b" onclick="this.closest('dialog').close()">
+          Cancel</button><button class="b pri" id="eo">Export</button>
+      </div>
+    </dialog>
+    <input type="file" id="imgf" accept="image/*" class="hidden">
+    <input type="file" id="visf" accept=".html,.htm,.svg,.css,.js" class="hidden">
+    <input type="file" id="impf" accept=".md,.txt,text/markdown,text/plain" multiple="" class="hidden">
+    <div id="toast" class="hidden"></div>
+
+    <!-- ============ NOTEBOOK DATA: this JSON is the saved state; the app rewrites it on save ============ -->
+    <script type="application/json" id="nb-data">{"groups":["DSA"],"ui":{"l":1,"r":1,"x":{"DSA":1}},"files":[{"id":"ohdznqc","name":"Arrays.md","g":"DSA","blocks":[{"t":"text","v":""},{"t":"h","v":"1.) Maximum consecutive / continuous X","l":2},{"t":"text","v":"### Problem\nGiven a binary array, find the maximum number of consecutive `1`s.\n### Pattern / Trigger\n**\"Maximum consecutive / continuous X\" → maintain a current streak + maximum streak.**\n\n### Observation\n* `1` → current streak continues: `count++`\n* `0` → streak breaks: `count = 0`\n* After extending the streak, update `max`.\n\n### Approach\n```java\nint count = 0, max = 0;\nfor (int x : nums) {\n    if (x == 1) {\n        count++;\n        max = Math.max(max, count);\n    } else {\n        count = 0;\n    }\n}\n```\n**Time:** `O(n)` | **Space:** `O(1)`\n\n### Remember\nDon't wait for a streak to end before updating `max`; **update the maximum whenever the current streak grows.**\n"},{"t":"h","v":"2.) Rotation + in-place requirement","l":2},{"t":"text","v":"### Problem\nRotate an array to the **left by `k` positions** in-place.\n### Pattern / Trigger\n**Rotation + in-place requirement → look for a rearrangement using reversals rather than shifting repeatedly.**\n\n### Observation\nLeft rotation:\n```text\n[a b c | d e f g]  →  [d e f g | a b c]\n```\n\nAlso always normalize:\n```java\n k = k % n;\n```\n\n### Approach\n```java\nreverse(nums, 0, k-1);\nreverse(nums, k, n-1);\nreverse(nums, 0, n-1);\n```\n**Time:** `O(n)` | **Space:** `O(1)`\n\n### Remember\n**Don't repeatedly perform `k` one-step rotations (`O(nk)`).**\nWhen an in-place rotation is required, think **\"3 reversals.\"**\n"},{"t":"h","v":"3.) In-place + preserve order + move/filter certain elements","l":2},{"t":"text","v":"### Problem\nMove all `0`s to the end while preserving the relative order of non-zero elements, **in-place**.\n### Pattern / Trigger\n**In-place + preserve order + move/filter elements → think write pointer / two pointers.**\n\n### Key Observation\n`j` marks where the next non-zero belongs; `i` scans the array.\n```java\nif (nums[i] != 0) {\n    swap(nums, i, j);\n    j++;\n}\n```\n### Complexity\n**Time:** `O(n)` | **Space:** `O(1)`\n\n### What I Did\nI used **compaction + fill**:\n```text\n[0,1,0,3,12]\n     ↓\n[1,3,12,_,_]\n     ↓\n[1,3,12,0,0]\n```\nThis is also `O(n)` / `O(1)` and is completely valid.\n\n### When Striver's Swap Pattern Helps More\nUse the **swap/two-pointer pattern** when the elements being moved are still meaningful, so you **cannot just fill the remaining positions with one fixed value**.\n\nExample: **Move all negative numbers to the end** (order of negatives need not be preserved):\n```text\n[-2, 5, -1, 3, 7]\n      ↓\n[5, 3, 7, -1, -2]\n```\nYou cannot use my `compact + fill` approach here because after moving `5,3,7` forward, the remaining positions must contain the **original negative values**, not some fixed value like `0`. Swapping them into position `j` handles everything in one pass.\n\n### Remember\n**Compaction + fill** is excellent when the discarded/moved elements can simply be reconstructed.\n**Two-pointer + swap** is more general when both groups contain meaningful values that must remain in the array.\n"},{"t":"h","v":"4.) XOR cancellation","l":2},{"t":"text","v":"**Problem:** Given `n` distinct numbers from `0..n`, find the one missing number.\n**Pattern / Trigger:** When elements should form a complete set but one is missing, and the same elements can be represented in two groups → think **XOR cancellation**.\n\n**Key Observation:** XOR has:\n* `x ^ x = 0` → duplicates cancel.\n* `x ^ 0 = x`.\n* XOR is associative/commutative, so order doesn't matter.\n\nTherefore:\n`(0 ^ 1 ^ ... ^ n) ^ (all array elements)`\ncancels every present number and leaves only the missing number.\n**Approach:**\n```java\nint xor1 = 0, xor2 = 0;\nfor (int i = 0; i \u003c nums.length; i++) {\n    xor1 ^= (i + 1);  // 1..n\n    xor2 ^= nums[i];  // array\n}\nreturn xor1 ^ xor2;\n```\n**Complexity:** Time `O(n)` | Space `O(1)`.\n\n**Remember:** **XOR is a cancellation tool.** If the same values occur in two sets, XORing both sets cancels common values and leaves the unmatched value(s). This also avoids sum overflow.\nIf elements have a stable numeric representation and duplicates should cancel, XOR can potentially be used regardless of whether the original elements are numbers, characters, etc.\n"},{"t":"h","v":"5.) Removing Duplicates from Sorted Array","l":2},{"t":"text","v":"**Problem:** Remove duplicates from a sorted array in-place and return the number of unique elements.\n**Pattern / Trigger:** **Sorted array + remove duplicates/in-place → two pointers + adjacent comparison.**\n\n**Key Observation:** Since the array is sorted, duplicates are next to each other. Keep `j` as the next position where a new unique value should be written; scan with `i`.\n**Approach:**\n```java\nint j = 1;\nfor (int i = 1; i \u003c nums.length; i++) {\n    if (nums[i] != nums[i - 1]) {\n        nums[j] = nums[i];\n        j++;\n    }\n}\nreturn j;\n```\n**Complexity:** Time `O(n)` | Auxiliary Space `O(1)`.\n\n**Remember:** **Sorted → duplicates become adjacent.** `i` explores; `j` writes the next unique element. Think **read pointer + write pointer**.\n"},{"t":"h","v":"6.) Two sorted arrays/lists → use two pointers instead of sorting again","l":2},{"t":"text","v":"**Pattern / Trigger:** Two **sorted** arrays/lists → use **two pointers** instead of sorting again.\n**Key Observation:** Compare `nums1[i]` and `nums2[j]`. The smaller value must come next in sorted order. On equality, take it once and advance a pointer.\n\n**Approach:**\n```java\nwhile (i \u003c n && j \u003c m) {\n    if (nums1[i] \u003c= nums2[j])\n        process(nums1[i++]);\n    else\n        process(nums2[j++]);\n}\nwhile (i \u003c n) process(nums1[i++]);\nwhile (j \u003c m) process(nums2[j++]);\n```\n**Complexity:** Time `O(n + m)` | Auxiliary Space `O(1)` (excluding output).\n\n**Remember:** **Sorted + two sequences → merge with two pointers.** Each pointer only moves forward, so every element is processed once.\n**Deduplication add-on:**\nWhen the merge result must contain unique elements, don't merge everything and deduplicate afterward. Before adding a candidate, check: (result.isEmpty() || result.get(result.size() - 1) != candidate) → Merge + deduplicate can be done in the same loop.\n"},{"t":"h","v":"7.) ","l":2},{"t":"text","v":""}]}],"cur":"ohdznqc"}</script>
+
+    <script id="app-js">
+      "use strict";
+      /* ===================== helpers ===================== */
+      const $ = (s) => document.querySelector(s);
+      const el = (t, p = {}, ...k) => {
+        const e = document.createElement(t);
+        for (const [a, v] of Object.entries(p)) {
+          if (a === "class") e.className = v;
+          else if (a === "text") e.textContent = v;
+          else if (a.startsWith("on")) e.addEventListener(a.slice(2), v);
+          else e[a] = v;
+        }
+        e.append(...k);
+        return e;
+      };
+      const btn = (t, f) =>
+        el("button", { class: "b sm", text: t, onclick: f });
+      const uid = () => Math.random().toString(36).slice(2, 9);
+      const esc = (s) =>
+        s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      let tt = 0;
+      const toast = (m) => {
+        const t = $("#toast");
+        t.textContent = m;
+        t.classList.remove("hidden");
+        clearTimeout(tt);
+        tt = setTimeout(() => t.classList.add("hidden"), 2800);
+      };
+
+      /* ===================== state =====================
+   S = {cur, ui:{l,r,x}, groups:[...], files:[{id,name,g,blocks:[...]}]}
+   g = subject folder name (null = top level); block types: text{v} | h{v,l} | img{src,name} | vis{code,h,name} */
+      let S;
+      try {
+        S = JSON.parse($("#nb-data").textContent);
+      } catch (e) {}
+      if (!S || !S.files || !S.files.length) {
+        S = {
+          groups: ["DSA"],
+          ui: { l: 1, r: 1, x: { DSA: 1 } },
+          files: [
+            {
+              id: uid(),
+              name: "Arrays.md",
+              g: "DSA",
+              blocks: [
+                { t: "h", v: "Welcome", l: 2 },
+                {
+                  t: "text",
+                  v: [
+                    "Type notes here. Markdown-style **bold**, *italic* and `inline code` are styled.",
+                    "",
+                    "```java",
+                    "int[] a = new int[5]; // code blocks get syntax colors",
+                    "for (int i = 0; i < a.length; i++) a[i] = i * 2;",
+                    "```",
+                    "",
+                    "Tip: the Code button (Alt+C) inserts the ``` fence pair for you — type a language after the opening fence, then write between them.",
+                  ].join("\n"),
+                },
+              ],
+            },
+          ],
+        };
+        S.cur = S.files[0].id;
+      }
+      /* migrate older saves + make the last opened notebook the one that opens by default */
+      S.ui = Object.assign({ l: 1, r: 1 }, S.ui || {});
+      S.ui.x = S.ui.x || {};
+      S.groups = Array.isArray(S.groups) ? S.groups : [];
+      if (!S.files.some((f) => f.id === S.cur)) S.cur = S.files[0].id;
+      const cur = () => S.files.find((f) => f.id === S.cur) || S.files[0];
+      let last = null; // last focused editable: {i, ta?}
+
+      /* ===================== syntax highlighting ===================== */
+      const KW = new Set(
+        "abstract and as assert async await auto bool boolean break byte case catch char class const constexpr continue def default del delete do double elif else enum except explicit export extends false final finally float for from func function global goto if implements import in include instanceof int interface is lambda let long namespace new nil none None not null or override package pass private protected public raise return short signed sizeof static struct super switch template this throw throws true True False try typedef typename union unsigned using var virtual void volatile while with yield".split(
+          " ",
+        ),
+      );
+      const REST =
+        /("""[\s\S]*?"""|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)|(\b\d[\w.]*)|([A-Za-z_]\w*)(?=\s*\()|([A-Za-z_]\w*)/;
+      const mkRe = (c) => new RegExp(c + "|" + REST.source, "g");
+      const RH = mkRe("(#.*|\\/\\*[\\s\\S]*?\\*\\/)"),
+        RC = mkRe("(\\/\\/.*|\\/\\*[\\s\\S]*?\\*\\/)"); // groups: 1 comment 2 string 3 number 4 call 5 ident
+      const HASH = /^(py|python|sh|bash|rb|ruby|yaml|yml|r)$/i;
+      const W = (c, s) =>
+        s
+          .split("\n")
+          .map((p) => (c ? `<span class="${c}">${esc(p)}</span>` : esc(p)))
+          .join("\n"); // wraps per line so spans never cross lines
+      function code(src, lang) {
+        const re = HASH.test(lang) ? RH : RC;
+        re.lastIndex = 0;
+        let o = "",
+          i = 0,
+          m;
+        while ((m = re.exec(src))) {
+          o += esc(src.slice(i, m.index));
+          const c = m[1]
+            ? "m"
+            : m[2]
+              ? "s"
+              : m[3]
+                ? "n"
+                : m[4]
+                  ? KW.has(m[4])
+                    ? "k"
+                    : "f"
+                  : KW.has(m[5])
+                    ? "k"
+                    : /^[A-Z]/.test(m[5])
+                      ? "t"
+                      : "";
+          o += W(c, m[0]);
+          i = re.lastIndex;
+        }
+        return o + esc(src.slice(i));
+      }
+      function md(ln) {
+        let s = esc(ln);
+        if (/^\s*&gt;/.test(s)) return `<span class="q">${s}</span>`;
+        s = s.replace(
+          /(`[^`]+`)|(\*\*[^*]+\*\*)|(\*[^*\s][^*]*\*)/g,
+          (m, a, b) =>
+            `<span class="${a ? "ic" : b ? "bd" : "it"}">${m}</span>`,
+        );
+        return s.replace(
+          /^(\s*)([-*+]|\d+\.)(\s)/,
+          '$1<span class="mk">$2</span>$3',
+        );
+      }
+      function hl(t) {
+        const out = [];
+        let inC = false,
+          lang = "",
+          buf = [];
+        const flush = () => {
+          if (buf.length) {
+            code(buf.join("\n"), lang)
+              .split("\n")
+              .forEach((x) =>
+                out.push(`<div class="l c">${x || "\u200b"}</div>`),
+              );
+            buf = [];
+          }
+        };
+        for (const ln of t.split("\n")) {
+          const m = /^\s*```\s*(\w*)/.exec(ln);
+          if (m) {
+            if (inC) {
+              flush();
+              inC = false;
+            } else {
+              inC = true;
+              lang = m[1];
+            }
+            out.push(`<div class="l c fe">${esc(ln) || "\u200b"}</div>`);
+            continue;
+          }
+          if (inC) {
+            buf.push(ln);
+            continue;
+          }
+          out.push(`<div class="l">${md(ln) || "\u200b"}</div>`);
+        }
+        flush();
+        return out.join("");
+      }
+
+      /* ===================== rendering ===================== */
+      function norm(f) {
+        // keep one editable text block between non-text blocks, merge adjacent text blocks
+        const o = [];
+        for (const b of f.blocks) {
+          const p = o[o.length - 1];
+          if (b.t === "text" && p && p.t === "text")
+            p.v = p.v && b.v ? p.v + "\n" + b.v : p.v + b.v;
+          else {
+            if (b.t !== "text" && (!p || p.t !== "text"))
+              o.push({ t: "text", v: "" });
+            o.push(b);
+          }
+        }
+        if (!o.length || o[o.length - 1].t !== "text")
+          o.push({ t: "text", v: "" });
+        f.blocks = o;
+      }
+      const fit = () =>
+        document.querySelectorAll(".tb textarea").forEach((t) => {
+          t.style.height = "auto";
+          t.style.height = t.scrollHeight + "px";
+        });
+      function focusAt(i, pos) {
+        const t = $("#page").children[i]?.querySelector("textarea,input.hd");
+        if (t) {
+          t.focus();
+          const p = Math.min(pos, t.value.length);
+          t.setSelectionRange(p, p);
+        }
+      }
+      function go(j, d, end) {
+        const c = $("#page").children;
+        for (; j >= 0 && j < c.length; j += d) {
+          const t = c[j].querySelector("textarea,input.hd");
+          if (t) {
+            t.focus();
+            const p = end ? t.value.length : 0;
+            t.setSelectionRange(p, p);
+            return;
+          }
+        }
+      }
+      function render() {
+        const f = cur(),
+          d = $("#doc"),
+          y = d.scrollTop,
+          pg = $("#page");
+        norm(f);
+        last = null;
+        pg.replaceChildren(...f.blocks.map((b, i) => mk(b, i)));
+        fit();
+        d.scrollTop = y;
+        renderFiles();
+        renderOutline();
+      }
+      function rm(i) {
+        cur().blocks.splice(i, 1);
+        mark();
+        render();
+        focusAt(Math.max(0, i - 1), 1e9);
+      }
+      function mk(b, i) {
+        if (b.t === "text") {
+          const pre = el("pre"),
+            ta = el("textarea", {
+              value: b.v,
+              spellcheck: false,
+              rows: 1,
+              placeholder: i === 0 ? "Start typing…" : "",
+            });
+          pre.innerHTML = hl(b.v);
+          ta.addEventListener("input", () => {
+            const d = $("#doc"),
+              y = d.scrollTop;
+            b.v = ta.value;
+            pre.innerHTML = hl(b.v);
+            ta.style.height = "auto";
+            ta.style.height = ta.scrollHeight + "px";
+            d.scrollTop = y;
+            mark();
+          });
+          ta.addEventListener("focus", () => (last = { i, ta }));
+          ta.addEventListener("keydown", (e) => {
+            if (e.key === "Tab" && !e.ctrlKey && !e.altKey) {
+              e.preventDefault();
+              document.execCommand("insertText", false, "  ");
+            } else if (e.altKey || e.shiftKey || e.ctrlKey || e.metaKey) return;
+            else if (e.key === "ArrowUp" && ta.selectionEnd === 0) {
+              e.preventDefault();
+              go(i - 1, -1, true);
+            } else if (
+              e.key === "ArrowDown" &&
+              ta.selectionStart === ta.value.length
+            ) {
+              e.preventDefault();
+              go(i + 1, 1, false);
+            }
+          });
+          return el("div", { class: "tb" }, pre, ta);
+        }
+        if (b.t === "h") {
+          const inp = el("input", {
+            class: "hd",
+            value: b.v,
+            placeholder: "Heading",
+            spellcheck: false,
+          });
+          inp.addEventListener("input", () => {
+            b.v = inp.value;
+            renderOutline();
+            mark();
+          });
+          inp.addEventListener("focus", () => (last = { i }));
+          inp.addEventListener("keydown", (e) => {
+            if (e.altKey) return;
+            if (e.key === "Enter" || e.key === "ArrowDown") {
+              e.preventDefault();
+              go(i + 1, 1, false);
+            } else if (e.key === "ArrowUp") {
+              e.preventDefault();
+              go(i - 1, -1, true);
+            } else if (e.key === "Backspace" && !inp.value) {
+              e.preventDefault();
+              rm(i);
+            }
+          });
+          return el("div", {}, inp);
+        } /* placeholder fixed below */
+        if (b.t === "img")
+          return el(
+            "figure",
+            { class: "blk" },
+            el(
+              "div",
+              { class: "bar" },
+              el("span", { text: "Image " + (b.name || "") }),
+              el("span", { class: "sp" }),
+              btn("Download", () => {
+                const a = el("a", {
+                  href: b.src,
+                  download: b.name || "image.png",
+                });
+                document.body.append(a);
+                a.click();
+                a.remove();
+              }),
+              btn("Delete", () => rm(i)),
+            ),
+            el("img", { src: b.src, alt: b.name || "image" }),
+          );
+        const fr = el("iframe", { title: "visual" });
+        fr.setAttribute("sandbox", "allow-scripts");
+        const run = () => {
+          fr.srcdoc = wrapV(b.code);
+        };
+        run();
+        const vw = el("div", { class: "vw" }, fr);
+        vw.style.height = (b.h || 320) + "px";
+        new ResizeObserver(() => {
+          const h = vw.offsetHeight;
+          if (h && Math.abs(h - (b.h || 320)) > 2) {
+            b.h = h;
+            mark();
+          }
+        }).observe(vw);
+        return el(
+          "section",
+          { class: "blk" },
+          el(
+            "div",
+            { class: "bar" },
+            el("span", {
+              text:
+                "Visual" +
+                (b.name
+                  ? " — " + b.name
+                  : " (drag the lower-right corner to resize)"),
+              title:
+                "The full source of this visual is stored inside this notebook",
+            }),
+            el("span", { class: "sp" }),
+            btn("Edit", () => visDlg(b, run)),
+            btn("Re-run", run),
+            btn("Download code", () => {
+              const nm = b.name || "visual.html";
+              dl(
+                nm,
+                new Blob([b.code], {
+                  type: /\.svg$/i.test(nm) ? "image/svg+xml" : "text/html",
+                }),
+              );
+            }),
+            btn("Delete", () => rm(i)),
+          ),
+          vw,
+        );
+      }
+      const BASE =
+        "<style>html,body{margin:0;background:#0f1815;color:#dbe6df;font-family:system-ui,sans-serif}svg{max-width:100%}body>svg:only-child{width:100%;height:100vh}</style>";
+      const wrapV = (c) =>
+        /<html[\s>]|<!doctype/i.test(c)
+          ? c
+          : '<!doctype html><meta charset="utf-8">' + BASE + c;
+
+      /* insert a block at the caret of the last focused text block (splitting it), else after the focused block, else at the end */
+      function insertBlock(nb) {
+        const bl = cur().blocks;
+        if (last && bl[last.i]) {
+          if (last.ta && bl[last.i].t === "text") {
+            const b = bl[last.i],
+              p = last.ta.selectionStart;
+            bl.splice(
+              last.i,
+              1,
+              { t: "text", v: b.v.slice(0, p).replace(/\n$/, "") },
+              nb,
+              { t: "text", v: b.v.slice(p).replace(/^\n/, "") },
+            );
+          } else bl.splice(last.i + 1, 0, nb);
+        } else bl.push(nb);
+        mark();
+        render();
+        const k = cur().blocks.indexOf(nb);
+        focusAt(nb.t === "h" ? k : k + 1, 0);
+        if (nb.t === "h")
+          $("#page").children[k].scrollIntoView({ block: "center" });
+      }
+      const insH = () => insertBlock({ t: "h", v: "", l: 2 });
+
+      /* Code button: drops a ``` fence pair at the caret so a backtick key is never needed.
+   The caret lands right after the opening fence — type a language there (java, py…) then Enter,
+   or just press Enter and write the code between the fences. */
+      let codeTips = 0;
+      function insCode() {
+        const f = cur();
+        let i = -1,
+          ta = null,
+          p = 0;
+        if (last && f.blocks[last.i]) {
+          if (f.blocks[last.i].t === "text" && last.ta) {
+            i = last.i;
+            ta = last.ta;
+            p = ta.selectionStart;
+          } // caret inside a text block
+          else if (f.blocks[last.i + 1] && f.blocks[last.i + 1].t === "text")
+            i = last.i + 1;
+        } // on a heading/visual: code goes right below it
+        if (i < 0)
+          for (let j = f.blocks.length - 1; j >= 0; j--)
+            if (f.blocks[j].t === "text") {
+              i = j;
+              p = f.blocks[j].v.length;
+              break;
+            } // plain append at the end
+        if (i < 0) return;
+        const b = f.blocks[i];
+        ta = ta || $("#page").children[i]?.querySelector("textarea");
+        if (!ta) return;
+        const before = b.v.slice(0, p),
+          after = b.v.slice(p);
+        const ls = before.lastIndexOf("\n") + 1;
+        let le = after.indexOf("\n");
+        if (le < 0) le = after.length;
+        const pre = before.slice(ls).trim() ? "\n" : ""; // caret sits after text: the opening fence gets its own line
+        const post = after.slice(0, le).trim() ? "\n" : ""; // text follows on this line: the closing fence gets its own line
+        const at = before.length + pre.length + 3; // caret position: right after the opening ``` (room for a language tag)
+        b.v = before + pre + "```\n\n```" + post + after;
+        mark();
+        render();
+        focusAt(i, at);
+        $("#page")
+          .children[i]?.querySelector("textarea")
+          ?.scrollIntoView({ block: "nearest" });
+        if (codeTips++ < 3)
+          toast(
+            "Optional: type a language right after ``` (java, py, js…) then Enter — or just Enter and start coding",
+          );
+      }
+
+      /* ===================== sidebars & folder tree ===================== */
+      const uniq = (n, ex) => {
+        n = (n || "").trim() || "Untitled.md";
+        if (!/\.(md|txt)$/i.test(n)) n += ".md";
+        const b = n;
+        let k = 1;
+        while (
+          S.files.some(
+            (f) => f !== ex && f.name.toLowerCase() === n.toLowerCase(),
+          )
+        )
+          n = b.replace(/(\.\w+)$/, ` (${k++})$1`);
+        return n;
+      };
+      function renderFiles() {
+        const L = $("#flist");
+        L.replaceChildren();
+        const row = (f) =>
+          el(
+            "div",
+            {
+              class: "fi" + (f.id === S.cur ? " on" : "") + (f.g ? " ind" : ""),
+              tabIndex: 0,
+              onclick: () => openF(f.id),
+              onkeydown: (e) => e.key === "Enter" && openF(f.id),
+            },
+            el("span", { class: "nm", text: f.name }),
+            el("button", {
+              class: "ib",
+              title:
+                "Rename — Folder/Name.md moves it into that folder; /Name.md moves it to top level",
+              text: "✎",
+              onclick: (e) => {
+                e.stopPropagation();
+                renF(f);
+              },
+            }),
+            el("button", {
+              class: "ib",
+              title: "Delete",
+              text: "✕",
+              onclick: (e) => {
+                e.stopPropagation();
+                delF(f);
+              },
+            }),
+          );
+        const x = S.ui.x || {};
+        for (const g of S.groups) {
+          // folders first, then loose files — like an IDE explorer
+          const open = x[g] !== 0,
+            kids = S.files.filter((f) => f.g === g);
+          L.append(
+            el(
+              "div",
+              {
+                class: "gh",
+                tabIndex: 0,
+                onclick: () => togG(g),
+                onkeydown: (e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    togG(g);
+                  }
+                },
+              },
+              el("span", { class: "tw", text: open ? "▾" : "▸" }),
+              el("span", { class: "gnm", text: g }),
+              el("button", {
+                class: "ib",
+                title: "New notebook in " + g,
+                text: "+",
+                onclick: (e) => {
+                  e.stopPropagation();
+                  newFile(g);
+                },
+              }),
+              el("button", {
+                class: "ib",
+                title: "Rename folder",
+                text: "✎",
+                onclick: (e) => {
+                  e.stopPropagation();
+                  renG(g);
+                },
+              }),
+              el("button", {
+                class: "ib",
+                title: "Delete folder — its notebooks are kept",
+                text: "✕",
+                onclick: (e) => {
+                  e.stopPropagation();
+                  delG(g);
+                },
+              }),
+            ),
+          );
+          if (open) {
+            if (kids.length) kids.forEach((f) => L.append(row(f)));
+            else
+              L.append(
+                el("div", {
+                  class: "empty-note",
+                  text: "empty — click + to add a notebook",
+                }),
+              );
+          }
+        }
+        S.files.filter((f) => !f.g).forEach((f) => L.append(row(f)));
+      }
+      function togG(g) {
+        S.ui.x[g] = S.ui.x[g] === 0 ? 1 : 0;
+        mark();
+        renderFiles();
+      }
+      function newGroup() {
+        const v = prompt("New folder name (a subject, e.g. DSA or DBMS)", "");
+        if (v === null || !v.trim()) return;
+        const n = v.trim();
+        if (n.includes("/")) return toast("Folder names cannot contain /");
+        if (S.groups.some((g) => g.toLowerCase() === n.toLowerCase()))
+          return toast("A folder with that name already exists");
+        S.groups.push(n);
+        S.ui.x[n] = 1;
+        mark();
+        renderFiles();
+        toast('Folder "' + n + '" created — its + button adds notebooks to it');
+      }
+      function renG(g) {
+        const v = prompt("Rename folder", g);
+        if (v === null || !v.trim() || v.trim() === g) return;
+        const n = v.trim();
+        if (n.includes("/")) return toast("Folder names cannot contain /");
+        if (S.groups.some((x) => x.toLowerCase() === n.toLowerCase()))
+          return toast("A folder with that name already exists");
+        S.groups[S.groups.indexOf(g)] = n;
+        S.files.forEach((f) => {
+          if (f.g === g) f.g = n;
+        });
+        if (g in S.ui.x) {
+          S.ui.x[n] = S.ui.x[g];
+          delete S.ui.x[g];
+        }
+        mark();
+        renderFiles();
+      }
+      function delG(g) {
+        const n = S.files.filter((f) => f.g === g).length;
+        if (
+          !confirm(
+            `Delete folder "${g}"? Its ${n} notebook${n === 1 ? "" : "s"} stay — they just move to the top level.`,
+          )
+        )
+          return;
+        S.groups = S.groups.filter((x) => x !== g);
+        S.files.forEach((f) => {
+          if (f.g === g) f.g = null;
+        });
+        delete S.ui.x[g];
+        mark();
+        renderFiles();
+      }
+      function renF(f) {
+        const v = prompt(
+          "Rename — prefix Folder/ to move it into that folder, or / for top level",
+          f.g ? f.g + "/" + f.name : f.name,
+        );
+        if (v === null) return;
+        let s = v.trim();
+        if (!s) return;
+        let g = f.g;
+        const i = s.lastIndexOf("/");
+        if (i >= 0) {
+          g = s.slice(0, i).trim() || null;
+          s = s.slice(i + 1).trim() || "Untitled.md";
+        }
+        if (g && !S.groups.includes(g)) {
+          S.groups.push(g);
+          S.ui.x[g] = 1;
+        }
+        f.g = g;
+        f.name = uniq(s, f);
+        mark();
+        renderFiles();
+      }
+      function newFile(g) {
+        const v = prompt(
+          g
+            ? "New notebook in " + g
+            : "New notebook — name it DSA/Stacks.md to file it inside a folder",
+          "Untitled.md",
+        );
+        if (v === null) return;
+        let s = v.trim(),
+          ng = g || null;
+        const i = s.lastIndexOf("/");
+        if (i >= 0) {
+          ng = s.slice(0, i).trim() || null;
+          s = s.slice(i + 1).trim() || "Untitled.md";
+        }
+        if (ng) {
+          if (!S.groups.includes(ng)) S.groups.push(ng);
+          S.ui.x[ng] = 1;
+        } // reveal the folder it lands in
+        const f = {
+          id: uid(),
+          name: uniq(s),
+          g: ng,
+          blocks: [{ t: "text", v: "" }],
+        };
+        S.files.push(f);
+        S.cur = f.id;
+        mark();
+        render();
+        focusAt(0, 0);
+      }
+      function openF(id) {
+        const nf = S.files.find((f) => f.id === id);
+        if (!nf) return;
+        if (nf.g) S.ui.x[nf.g] = 1; // reveal the folder of the file you open, like an IDE
+        if (S.cur !== id) {
+          S.cur = id;
+          mark();
+        } // remember the last opened notebook — it reopens by default
+        render();
+        $("#doc").scrollTop = 0;
+      }
+      function delF(f) {
+        if (!confirm(`Delete "${f.name}"? This cannot be undone.`)) return;
+        S.files = S.files.filter((x) => x !== f);
+        if (!S.files.length)
+          S.files.push({
+            id: uid(),
+            name: "Untitled.md",
+            blocks: [{ t: "text", v: "" }],
+          });
+        if (S.cur === f.id) S.cur = S.files[0].id;
+        mark();
+        render();
+      }
+      function renderOutline() {
+        const o = $("#olist");
+        o.replaceChildren();
+        cur().blocks.forEach((b, i) => {
+          if (b.t === "h")
+            o.append(
+              el("div", {
+                class: "oi",
+                tabIndex: 0,
+                text: b.v || "(untitled)",
+                onclick: () => jump(i),
+                onkeydown: (e) => e.key === "Enter" && jump(i),
+              }),
+            );
+        });
+        if (!o.children.length)
+          o.append(
+            el("div", {
+              class: "pad dim small",
+              text: "Headings you insert appear here.",
+            }),
+          );
+      }
+      function jump(i) {
+        const c = $("#page").children[i];
+        if (!c) return;
+        c.scrollIntoView({ block: "start" });
+        const t = c.querySelector("input");
+        t && t.focus({ preventScroll: true });
+      }
+      function navH(d) {
+        const H = [];
+        cur().blocks.forEach((b, i) => b.t === "h" && H.push(i));
+        if (!H.length) return;
+        const c = last ? last.i : -1;
+        let t =
+          d > 0 ? H.find((i) => i > c) : [...H].reverse().find((i) => i < c);
+        if (t == null) t = d > 0 ? H[0] : H[H.length - 1];
+        jump(t);
+      }
+      /* ---- collapsible sidebars: docked panels, never auto-hide; state saved with the notebook ---- */
+      function sideUI() {
+        const a = $("#app");
+        a.style.gridTemplateColumns =
+          (S.ui.l ? "230px" : "26px") + " 1fr " + (S.ui.r ? "220px" : "26px");
+        $("#files").classList.toggle("closed", !S.ui.l);
+        $("#outline").classList.toggle("closed", !S.ui.r);
+      }
+      const toggleSide = (w) => {
+        S.ui[w] = S.ui[w] ? 0 : 1;
+        mark();
+        sideUI();
+      };
+      const toggleBoth = () => {
+        const any = S.ui.l || S.ui.r;
+        S.ui.l = any ? 0 : 1;
+        S.ui.r = any ? 0 : 1;
+        mark();
+        sideUI();
+      }; // reading mode
+
+      /* ===================== search ===================== */
+      let M = [],
+        mi = -1;
+      function scan() {
+        const q = $("#sq").value.toLowerCase();
+        M = [];
+        if (!q) return;
+        cur().blocks.forEach((b, i) => {
+          if (b.t !== "text" && b.t !== "h") return;
+          const s = b.v.toLowerCase();
+          for (let p = s.indexOf(q); p >= 0; p = s.indexOf(q, p + q.length))
+            M.push({ i, p, n: q.length });
+        });
+      }
+      function step(d, focus) {
+        scan();
+        if (!M.length) {
+          $("#sc").textContent = "0/0";
+          return;
+        }
+        mi = (mi + d + M.length) % M.length;
+        const m = M[mi];
+        $("#sc").textContent = `${mi + 1}/${M.length}`;
+        const c = $("#page").children[m.i],
+          t = c.querySelector("textarea,input.hd"),
+          d2 = $("#doc");
+        let y = c.getBoundingClientRect().top - d2.getBoundingClientRect().top;
+        if (t.tagName === "TEXTAREA")
+          y += t.value.slice(0, m.p).split("\n").length * 23;
+        d2.scrollTop += y - d2.clientHeight / 3;
+        if (focus) {
+          t.focus();
+          t.setSelectionRange(m.p, m.p + m.n);
+        }
+      }
+      const openSearch = () => {
+        $("#sb").classList.remove("hidden");
+        $("#sq").focus();
+        $("#sq").select();
+      };
+      const closeSearch = () => {
+        $("#sb").classList.add("hidden");
+        if (last?.ta) last.ta.focus();
+      };
+
+      /* ===================== import / export ===================== */
+      function parse(t) {
+        const bl = [];
+        let buf = [],
+          f = false;
+        const fl = () => {
+          bl.push({ t: "text", v: buf.join("\n").replace(/^\n+|\n+$/g, "") });
+          buf = [];
+        };
+        t.replace(/\r\n?/g, "\n")
+          .split("\n")
+          .forEach((l) => {
+            if (/^\s*```/.test(l)) f = !f;
+            const m = !f && /^(#{1,6})\s+(.*?)\s*#*\s*$/.exec(l);
+            if (m) {
+              fl();
+              bl.push({ t: "h", v: m[2], l: m[1].length });
+            } else buf.push(l);
+          });
+        fl();
+        return bl;
+      }
+      async function imp(files) {
+        let n = 0;
+        for (const fl of files) {
+          const f = {
+            id: uid(),
+            name: uniq(fl.name),
+            g: null,
+            blocks: parse(await fl.text()),
+          };
+          S.files.push(f);
+          S.cur = f.id;
+          n++;
+        }
+        if (n) {
+          mark();
+          render();
+          toast(`Imported ${n} notebook${n > 1 ? "s" : ""}`);
+        }
+      }
+      const toText = (f, o) =>
+        f.blocks
+          .map((b) =>
+            b.t === "text"
+              ? b.v
+              : b.t === "h"
+                ? "#".repeat(b.l || 2) + " " + b.v
+                : b.t === "img"
+                  ? o.img
+                    ? `![${b.name || "image"}](${b.src})`
+                    : null
+                  : o.vis
+                    ? "```html\n" + b.code + "\n```"
+                    : null,
+          )
+          .filter((x) => x != null && x !== "")
+          .join("\n\n") + "\n";
+      function dl(n, b) {
+        const a = el("a", { href: URL.createObjectURL(b), download: n });
+        document.body.append(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      }
+      async function exportAll() {
+        const ext = $("input[name=fm]:checked").value,
+          o = { img: $("#ei").checked, vis: $("#ev").checked };
+        const items = S.files.map((f) => ({
+          n: f.name.replace(/\.(md|txt)$/i, "") + "." + ext,
+          t: toText(f, o),
+        }));
+        $("#ed").close();
+        if (window.showDirectoryPicker) {
+          try {
+            const d = await showDirectoryPicker({ mode: "readwrite" });
+            for (const it of items) {
+              const w = await (
+                await d.getFileHandle(it.n, { create: true })
+              ).createWritable();
+              await w.write(it.t);
+              await w.close();
+            }
+            return toast(`Exported ${items.length} files`);
+          } catch (e) {
+            if (e.name === "AbortError") return;
+          }
+        }
+        for (const it of items) {
+          dl(it.n, new Blob([it.t], { type: "text/plain" }));
+          await new Promise((r) => setTimeout(r, 300));
+        }
+        toast(`Downloaded ${items.length} files`);
+      }
+
+      /* ===================== persistence: the HTML file saves itself =====================
+   Browser security means a page can never silently overwrite a local file it was never
+   handed, so the FIRST Save asks you to pick this very HTML file once. The granted
+   handle is then cached in IndexedDB (only the handle reference — never note content),
+   so every later session writes straight into the same file. No extra file is made. */
+      let FH = null,
+        dirty = false,
+        ver = 0,
+        tm = 0,
+        pendingH = null;
+      const pageName = () => {
+        try {
+          return decodeURIComponent(location.pathname.split("/").pop());
+        } catch (e) {
+          return "";
+        }
+      };
+      const idb = () =>
+        new Promise((res, rej) => {
+          const r = indexedDB.open("dsa-nb-handle", 1);
+          r.onupgradeneeded = () => r.result.createObjectStore("h");
+          r.onsuccess = () => res(r.result);
+          r.onerror = () => rej(r.error);
+        });
+      const idbGet = async () => {
+        try {
+          const db = await idb();
+          return await new Promise((res, rej) => {
+            const q = db.transaction("h").objectStore("h").get("fh");
+            q.onsuccess = () => res(q.result);
+            q.onerror = () => rej(q.error);
+          });
+        } catch (e) {
+          return null;
+        }
+      };
+      const idbSet = async (v) => {
+        try {
+          const db = await idb();
+          const q = db
+            .transaction("h", "readwrite")
+            .objectStore("h")
+            .put(v, "fh");
+          await new Promise((res, rej) => {
+            q.onsuccess = res;
+            q.onerror = rej;
+          });
+        } catch (e) {}
+      };
+      function stat(msg) {
+        const s = $("#st");
+        s.textContent =
+          msg ||
+          (FH
+            ? dirty
+              ? "● saving…"
+              : "✓ autosaves to " + FH.name
+            : "● link on first save");
+        s.title = FH
+          ? "Changes are written directly into " + FH.name
+          : "First Save asks you to pick this HTML file once; after that saving is automatic";
+        s.className = "pill " + (FH && !dirty ? "ok" : "warn");
+      }
+      function mark() {
+        dirty = true;
+        ver++;
+        stat();
+        clearTimeout(tm);
+        tm = setTimeout(() => save(false), 1500);
+      } // debounced autosave
+      async function attach(h) {
+        try {
+          if ((await h.requestPermission({ mode: "readwrite" })) !== "granted")
+            return false;
+        } catch (e) {
+          return false;
+        }
+        FH = h;
+        pendingH = null;
+        idbSet(h);
+        return true;
+      }
+      async function pickSelf() {
+        try {
+          const [h] = await showOpenFilePicker({
+            types: [
+              {
+                description: "This notebook (HTML)",
+                accept: { "text/html": [".html", ".htm"] },
+              },
+            ],
+          });
+          return h;
+        } catch (e) {
+          return null;
+        }
+      }
+      async function save(manual) {
+        clearTimeout(tm);
+        if (!window.showOpenFilePicker) {
+          // this browser cannot write files in place at all
+          if (manual) {
+            dl(
+              pageName() || "DSA-Notebook.html",
+              new Blob([ser()], { type: "text/html" }),
+            );
+            toast(
+              "This browser cannot save in place — downloaded a copy instead",
+            );
+          }
+          return;
+        }
+        if (!FH) {
+          let h = pendingH;
+          if (!h && manual) {
+            toast("Pick this HTML file once — after that, saving is automatic");
+            h = await pickSelf();
+          }
+          if (!(h && (await attach(h)))) {
+            pendingH = h || pendingH;
+            stat();
+            if (manual)
+              toast("Not saved yet — press Ctrl+S and select this file once");
+            return;
+          }
+        }
+        const v = ver;
+        try {
+          const w = await FH.createWritable();
+          await w.write(ser());
+          await w.close();
+          dirty = ver !== v;
+          stat();
+          if (dirty) tm = setTimeout(() => save(false), 1500); // edits made during the write get saved too
+          if (manual) toast("Saved to " + FH.name);
+        } catch (e) {
+          FH = null;
+          pendingH = null;
+          stat("✗ write failed — press Ctrl+S to relink");
+          if (manual)
+            toast("Write failed — press Ctrl+S and pick the file again");
+        }
+      }
+      /* on boot, silently reattach a previously granted handle for this same file */
+      (async () => {
+        const h = await idbGet();
+        if (!h || !h.queryPermission || !h.requestPermission) return;
+        const f = await h.getFile().catch(() => null);
+        if (f && (!pageName() || f.name === pageName())) {
+          const p = await h
+            .queryPermission({ mode: "readwrite" })
+            .catch(() => "denied");
+          if (p === "granted") {
+            FH = h;
+            stat();
+          } else pendingH = h;
+        }
+      })();
+      function ser() {
+        const c = document.documentElement.cloneNode(true); // snapshot of this very page, with dynamic UI emptied and fresh data embedded
+        ["#page", "#flist", "#olist", "#toast"].forEach((s) =>
+          c.querySelector(s).replaceChildren(),
+        );
+        c.querySelector("#nb-data").textContent = JSON.stringify(S).replace(
+          /</g,
+          "\\u003c",
+        );
+        c.querySelectorAll("dialog").forEach((d) => d.removeAttribute("open"));
+        return "<!DOCTYPE html>\n" + c.outerHTML;
+      }
+      addEventListener("beforeunload", (e) => {
+        if (dirty) {
+          e.preventDefault();
+          e.returnValue = "";
+        }
+      });
+
+      /* ===================== visual dialog (paste code OR import a file such as Sort_Lab.html) ===================== */
+      let vcb = null,
+        vName = ""; // vName = filename the visual came from (kept so it can be downloaded back later)
+      function visDlg(b, cb) {
+        vcb = { b, cb };
+        vName = (b && b.name) || "";
+        $("#vc").value = b ? b.code : "";
+        $("#vn").textContent = vName ? "Source file: " + vName : "";
+        $("#vd").showModal();
+        $("#vc").focus();
+      }
+
+      /* ===================== background: stars + forest (drawn once, static) ===================== */
+      function sky() {
+        const c = $("#sky"),
+          x = c.getContext("2d"),
+          w = (c.width = innerWidth),
+          h = (c.height = innerHeight);
+        const g = x.createLinearGradient(0, 0, 0, h);
+        g.addColorStop(0, "#070d14");
+        g.addColorStop(0.6, "#0b1512");
+        g.addColorStop(1, "#0a120e");
+        x.fillStyle = g;
+        x.fillRect(0, 0, w, h);
+        let s = 7;
+        const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
+        for (let i = 0; i < (w * h) / 6000; i++) {
+          x.fillStyle = `rgba(220,230,255,${0.15 + r() * 0.5})`;
+          const z = r() < 0.1 ? 2 : 1;
+          x.fillRect(r() * w, r() * h * 0.8, z, z);
+        }
+        for (let k = 0; k < 2; k++) {
+          x.fillStyle = k ? "#0a1a14" : "#0d2119";
+          for (let X = -20; X < w + 20; X += 18 + r() * 16) {
+            const th = 60 + r() * (k ? 110 : 70),
+              tw = th * 0.38;
+            x.beginPath();
+            x.moveTo(X, h + 10 - th);
+            x.lineTo(X + tw, h + 10);
+            x.lineTo(X - tw, h + 10);
+            x.fill();
+          }
+        }
+      }
+
+      /* ===================== wiring & shortcuts ===================== */
+      $("#bh").onclick = insH;
+      $("#bi").onclick = () => $("#imgf").click();
+      $("#bv").onclick = () => visDlg(null);
+      $("#bf").onclick = openSearch;
+      $("#bc").onclick = insCode;
+      $("#bim").onclick = () => $("#impf").click();
+      $("#bex").onclick = () => $("#ed").showModal();
+      $("#bs").onclick = () => save(true);
+      $("#st").onclick = () => save(true);
+      $("#bn").onclick = () => newFile();
+      $("#bng").onclick = () => newGroup();
+      $("#eo").onclick = exportAll;
+      $("#sx").onclick = closeSearch;
+      $("#bcf").onclick = () => toggleSide("l");
+      $("#fopen").onclick = () => toggleSide("l");
+      $("#bco").onclick = () => toggleSide("r");
+      $("#oopen").onclick = () => toggleSide("r");
+      $("#ehc").onclick = () => {
+        $("#ed").close();
+        dl(
+          pageName() || "DSA-Notebook.html",
+          new Blob([ser()], { type: "text/html" }),
+        );
+        toast("Downloaded a standalone copy of this notebook");
+      };
+      $("#imgf").onchange = (e) => {
+        const fl = e.target.files[0];
+        if (fl) {
+          const r = new FileReader();
+          r.onload = () =>
+            insertBlock({ t: "img", src: r.result, name: fl.name });
+          r.readAsDataURL(fl);
+        }
+        e.target.value = "";
+      };
+      $("#vif").onclick = () => $("#visf").click();
+      $("#visf").onchange = (e) => {
+        const fl = e.target.files[0];
+        if (!fl) return;
+        const r = new FileReader();
+        r.onload = () => {
+          $("#vc").value = r.result;
+          vName = fl.name;
+          $("#vn").textContent =
+            "Loaded " + fl.name + " — press Run to insert it as a visual block";
+        };
+        r.readAsText(fl);
+        e.target.value = "";
+      };
+      $("#impf").onchange = (e) => {
+        imp([...e.target.files]);
+        e.target.value = "";
+      };
+      $("#sq").oninput = () => {
+        mi = -1;
+        step(1, false);
+      };
+      $("#sq").onkeydown = (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          step(e.shiftKey ? -1 : 1, true);
+        }
+      };
+      $("#vx").onclick = () => $("#vd").close();
+      $("#vo").onclick = () => {
+        const c = $("#vc").value;
+        if (!c.trim()) return;
+        $("#vd").close();
+        if (vcb.b) {
+          vcb.b.code = c;
+          if (vName) vcb.b.name = vName;
+          vcb.cb();
+          mark();
+        } else
+          insertBlock({
+            t: "vis",
+            code: c,
+            name: vName || undefined,
+            h: vName ? 480 : 320,
+          });
+      };
+      $("#vc").onkeydown = (e) => {
+        if (e.key === "Tab") {
+          e.preventDefault();
+          document.execCommand("insertText", false, "  ");
+        } else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+          e.preventDefault();
+          $("#vo").click();
+        }
+      };
+      $("#page").addEventListener("click", (e) => {
+        if (e.target.id === "page")
+          focusAt($("#page").children.length - 1, 1e9);
+      });
+      addEventListener("resize", () => {
+        sky();
+        fit();
+      });
+      addEventListener("keydown", (e) => {
+        const m = e.ctrlKey || e.metaKey,
+          k = e.code;
+        if (m && k === "KeyS") {
+          e.preventDefault();
+          save(true);
+        } else if (m && k === "KeyF" && !e.shiftKey) {
+          e.preventDefault();
+          openSearch();
+        } else if (k === "F3" || (m && k === "KeyG")) {
+          e.preventDefault();
+          step(e.shiftKey ? -1 : 1, true);
+        } else if (e.altKey && !m) {
+          const a = {
+            KeyN: () => newFile(),
+            KeyH: insH,
+            KeyV: () => visDlg(null),
+            KeyC: insCode,
+            KeyI: () => $("#imgf").click(),
+            KeyE: () => $("#ed").showModal(),
+            KeyO: () => $("#impf").click(),
+            Digit1: () => toggleSide("l"),
+            Digit2: () => toggleSide("r"),
+            Digit3: toggleBoth,
+          }[k];
+          if (a) {
+            e.preventDefault();
+            a();
+          } else if (k === "ArrowUp" || k === "ArrowDown") {
+            e.preventDefault();
+            navH(k === "ArrowUp" ? -1 : 1);
+          }
+        } else if (
+          e.key === "Escape" &&
+          !$("#sb").classList.contains("hidden") &&
+          !document.querySelector("dialog[open]")
+        )
+          closeSearch();
+      });
+
+      /* ===================== boot ===================== */
+      $("#sb").classList.add("hidden");
+      sky();
+      sideUI();
+      render();
+      stat();
+    </script>
+  
+
+</body></html>
