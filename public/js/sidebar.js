@@ -13,8 +13,19 @@ export function renderFiles() {
     el("div", {
       class: "fi" + (f.id === S.cur ? " on" : "") + (f.group ? " ind" : ""),
       tabIndex: 0,
+      draggable: "true",
+      "data-nb": f.id,
       onclick: () => open(f.id),
       onkeydown: (e) => e.key === "Enter" && open(f.id),
+      ondragstart: (e) => { drag = f; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", f.id); e.currentTarget.classList.add("drag"); },
+      ondragend: (e) => e.currentTarget.classList.remove("drag"),
+      ondragover: (e) => { e.preventDefault(); e.currentTarget.classList.add("drop"); },
+      ondragleave: (e) => e.currentTarget.classList.remove("drop"),
+      ondrop: (e) => {
+        e.preventDefault(); e.stopPropagation();
+        e.currentTarget.classList.remove("drop");
+        dropOnto(f);
+      },
     },
       el("span", { class: "nm", text: f.name, title: f.name }),
       strengthDot(f),
@@ -33,8 +44,18 @@ export function renderFiles() {
     const kids = notebooksIn(g);
     L.append(el("div", {
       class: "gh", tabIndex: 0,
+      draggable: "true",
+      "data-folder": g,
       onclick: () => togG(g),
       onkeydown: (e) => { if (e.key === "Enter") { e.preventDefault(); togG(g); } },
+      ondragstart: (e) => { dragFolder = g; e.dataTransfer.effectAllowed = "move"; },
+      ondragover: (e) => { e.preventDefault(); e.currentTarget.classList.add("drop"); },
+      ondragleave: (e) => e.currentTarget.classList.remove("drop"),
+      ondrop: (e) => {
+        e.preventDefault(); e.stopPropagation();
+        e.currentTarget.classList.remove("drop");
+        dropInFolder(g);
+      },
     },
       el("span", { class: "tw", text: open ? "▾" : "▸" }),
       el("span", { class: "gnm", text: g }),
@@ -47,10 +68,57 @@ export function renderFiles() {
       else L.append(el("div", { class: "empty-note", text: "empty — click + to add a notebook" }));
     }
   }
+  // a drop target for the top level (drag a file out of any folder)
+  const root = el("div", {
+    class: "drop-root",
+    text: "Top level — drop here to move out of a folder",
+    ondragover: (e) => { e.preventDefault(); e.currentTarget.classList.add("drop"); },
+    ondragleave: (e) => e.currentTarget.classList.remove("drop"),
+    ondrop: (e) => { e.preventDefault(); e.currentTarget.classList.remove("drop"); dropInFolder(null); },
+  });
+  root.classList.toggle("hidden", !S.notebooks.some((f) => f.group));
   notebooksIn(null).forEach((f) => L.append(row(f)));
+  L.append(root);
 
   if (!S.notebooks.length)
     L.append(el("div", { class: "pad dim small", text: "No notebooks yet — press Alt+N or the + New button." }));
+}
+
+let drag = null;      // notebook being dragged
+let dragFolder = null;
+
+function dropInFolder(g) {
+  const f = drag;
+  drag = null;
+  if (!f) return;
+  if (f.group === g) return;
+  f.group = g;
+  if (g) { if (!S.folders.includes(g)) S.folders.push(g); S.ui.x[g] = 1; persistFolders(); }
+  save(f, { group: g });
+  renderFiles();
+  import("./app.js").then((m) => m.afterDataChange());
+  toast(g ? 'Moved "' + f.name + '" into ' + g : 'Moved "' + f.name + '" to the top level');
+}
+
+/** Drop onto a file: move into its folder, and order it right after that file. */
+function dropOnto(target) {
+  const f = drag;
+  drag = null;
+  if (!f || f === target) return;
+  const g = target.group;
+  if (f.group !== g) {
+    f.group = g;
+    if (g) { if (!S.folders.includes(g)) S.folders.push(g); S.ui.x[g] = 1; persistFolders(); }
+  }
+  // keep order stable: place the dragged notebook right after the target
+  const all = [...S.notebooks].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const from = all.indexOf(f);
+  all.splice(from, 1);
+  all.splice(all.indexOf(target) + 1, 0, f);
+  all.forEach((n, i) => { n.order = (i + 1) * 1000; save(n, { order: n.order }); });
+  renderFiles();
+  import("./app.js").then((m) => m.afterDataChange());
+  toast(g ? 'Moved "' + f.name + '" into ' + g + ', after "' + target.name + '"' : 'Reordered "' + f.name + '" after "' + target.name + '"');
 }
 
 function strengthDot(f) {

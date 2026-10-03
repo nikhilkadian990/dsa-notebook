@@ -82,10 +82,19 @@ check("editor renders the heading block", !!page && !!page.querySelector("input.
 check("editor renders the text block", !!page && !!page.querySelector(".tb textarea"));
 check("heading input carries the title", page?.querySelector("input.hd")?.value === "Two Sum");
 
-/* ---------- metadata strip ---------- */
+/* ---------- metadata strip is gone; notes carry their own toolbar ---------- */
 const meta = await import("../public/js/meta.js");
-meta.renderMeta();
-check("metadata strip renders the notebook title", $("#metabar")?.textContent.includes("Arrays.md"));
+const heads = $$("#page .nh");
+check("heading renders as a note with a ⋮ button", heads.length >= 1 && !!heads[0].querySelector(".nh-btn"));
+check("note toolbar starts closed", heads.length >= 1 && !!heads[0].querySelector(".nh-body.hidden"));
+heads[0].querySelector(".nh-btn").click();
+await flush();
+{
+  const body = heads[0].querySelector(".nh-body");
+  check("opening the ⋮ button reveals the inline toolbar", !body.classList.contains("hidden"));
+  check("toolbar has the problem-link field", !!body.querySelector("input.min"));
+  check("toolbar offers per-note recall", [...body.querySelectorAll("button")].some((b) => b.textContent.includes("Recall")));
+}
 
 /* ---------- search ---------- */
 const search = await import("../public/js/search.js");
@@ -136,9 +145,50 @@ check("sidebar no longer shows the shortcuts hint", !$("#files .hint"));
 const empty = freshNotebook("Empty.md", null);
 S.notebooks.push(empty);
 const revise = await import("../public/js/revise.js");
-const due = revise.dueList();
-check("revision queue excludes empty notebooks", !due.some((x) => x.id === empty.id),
-  "due list: " + due.map((d) => d.name).join(","));
+const due = revise.dueNotes();
+check("revision queue excludes empty notebooks", !due.some((x) => x.nb.id === empty.id),
+  "due list: " + due.map((d) => d.b.v || d.nb.name).join(","));
+
+/* ---------- note-level scheduling: a reviewed note becomes due ---------- */
+{
+  const nb = S.notebooks.find((x) => x.name === "DSA/Arrays.md");
+  const h = nb.blocks.find((b) => b.t === "h");
+  const { recordNoteReview, noteDue } = await import("../public/js/store.js");
+  recordNoteReview(nb, h, "good");
+  check("reviewing a note schedules its own due date", !!h.meta.dueAt && h.meta.dueAt > Date.now());
+  check("reviewed note is not due yet", !noteDue(nb, h));
+  h.meta.dueAt = Date.now() - 1000;
+  check("a lapsed note becomes due", noteDue(nb, h));
+}
+
+/* ---------- recall: whole-file picker and single-note ---------- */
+{
+  const nb = S.notebooks.find((x) => x.name === "DSA/Arrays.md");
+  const recall = await import("../public/js/recall.js");
+  recall.start(nb);
+  await flush();
+  const dialog = $$(".rd").pop();
+  check("multi-note recall opens a file picker", !!dialog && dialog.textContent.includes("Recall —"));
+  dialog?.close();
+  recall.startNote(nb, nb.blocks.find((b) => b.t === "h"));
+  await flush();
+  const single = $$(".rd").pop();
+  check("single-note recall opens directly", !!single && single.textContent.includes("Recall — Two Sum"));
+  single?.close();
+}
+
+/* ---------- search groups by notebook and highlights matches ---------- */
+{
+  const search = await import("../public/js/search.js");
+  search.openSearch();
+  $("#sq").value = "hash";
+  search.runSearch();
+  await flush();
+  const sres = $("#sresults");
+  check("search groups results by notebook", !!sres.querySelector(".sr-grp"));
+  check("search highlights the matched term", !!sres.querySelector("mark"));
+  search.closeSearch();
+}
 
 /* ---------- AI provider chain: add, reorder, remove ---------- */
 const ai = await import("../public/js/ai.js");
@@ -196,7 +246,41 @@ localStorage.clear();
     failDlg ? failDlg.querySelectorAll(".ai-fail-i").length + " rows" : "no dialog");
   check("failure dialog reports the specific errors", !!failDlg && failDlg.textContent.includes("401") && failDlg.textContent.includes("404"));
   check("failure dialog offers a path to settings", !!$$("dialog").find((d) => d.textContent.includes("Open AI settings")));
-  localStorage.clear();
+localStorage.clear();
+
+/* ---------- sidebar drag & drop: move a notebook between folders ---------- */
+{
+  const { S } = await import("../public/js/state.js");
+  const { freshNotebook, save } = await import("../public/js/store.js");
+  const mover = freshNotebook("Stacks.md", null);
+  S.notebooks.push(mover);
+  const { renderFiles } = await import("../public/js/sidebar.js");
+  renderFiles();
+  await flush();
+  check("a root notebook renders in the sidebar", $$("#flist .fi").some((r) => r.textContent.includes("Stacks.md")));
+  // jsdom has no DataTransfer; the handlers only touch currentTarget + the
+  // module-level drag target set by dragstart, so a plain custom event works
+  const fire = (el, type) => {
+    const row = $$("#flist .fi").find((r) => r.textContent.includes("Stacks.md"));
+    const tgt = type === "drop" ? el : row;
+    tgt.dispatchEvent(new dom.window.Event(type, { bubbles: true }));
+  };
+  const grp = $$("#flist .gh").find((g) => g.textContent.includes("DSA"));
+  fire(null, "dragstart");
+  fire(grp, "drop");
+  await flush();
+  const moved = S.notebooks.find((x) => x.id === mover.id);
+  check("dropping on a folder moves the notebook into it", moved && moved.group === "DSA", moved ? moved.group : "null");
+  renderFiles();
+  await flush();
+  // and back out to the root via the top-level drop zone
+  const root = $("#flist .drop-root");
+  fire(null, "dragstart");
+  fire(root, "drop");
+  await flush();
+  const back = S.notebooks.find((x) => x.id === mover.id);
+  check("dropping on the root zone moves the notebook out", back && back.group === null, back ? String(back.group) : "null");
+}
 }
 
 /* ---------- outline ---------- */

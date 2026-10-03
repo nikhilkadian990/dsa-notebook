@@ -1,9 +1,11 @@
-// Notebook-wide search. Ctrl+F shows results from the current notebook first,
-// then every other notebook, with snippets; Enter/Shift+Enter walks the list.
-import { $, el, toast } from "./util.js";
-import { S, cur, nbById, plainText, titleOf } from "./state.js";
+// Notebook-wide search, IDE/Notion style. Results are grouped by notebook with
+// per-file match counts, each hit shows the matched line with the query
+// highlighted, the containing note (nearest heading), and a click jumps straight
+// to the spot. Enter / Shift+Enter walks the list.
+import { $, el, esc, toast } from "./util.js";
+import { S, cur, nbById, titleOf, noteTitle } from "./state.js";
 
-let M = [], mi = -1, panel = null;
+let M = [], mi = -1;
 
 function matchAll(hay, q) {
   const out = [];
@@ -12,19 +14,25 @@ function matchAll(hay, q) {
   return out;
 }
 
+/** Snippet around a hit, in the matched line, with the query wrapped in <mark>. */
 function snippet(text, p, q) {
-  const a = Math.max(0, p - 40), b = Math.min(text.length, p + q.length + 60);
-  const line = text.slice(a, b).replace(/\n+/g, "  ");
-  return (a > 0 ? "… " : "") + line + (b < text.length ? " …" : "");
+  const lineStart = text.lastIndexOf("\n", p) + 1;
+  const lineEnd = text.indexOf("\n", p + q.length);
+  const end = lineEnd === -1 ? text.length : lineEnd;
+  const a = Math.max(lineStart, p - 48);
+  const b = Math.min(end, p + q.length + 48);
+  const esc2 = (s) => esc(s.replace(/\n+/g, " "));
+  return (a > lineStart ? "…" : "") + esc2(text.slice(a, p)) +
+    "<mark>" + esc2(text.slice(p, p + q.length)) + "</mark>" +
+    esc2(text.slice(p + q.length, b)) + (b < end ? " …" : "");
 }
 
-function blockOffset(nb, blockIdx) {
-  let off = 0;
-  for (let i = 0; i < blockIdx; i++) {
-    const b = nb.blocks[i];
-    off += ((b.t === "text" || b.t === "code" ? b.v : b.t === "h" ? b.v : "") || "").length + 1;
-  }
-  return off;
+/** Which note (heading block) does a block index belong to? */
+function noteOf(nb, i) {
+  const blocks = nb.blocks || [];
+  let h = null;
+  for (let k = 0; k <= i && k < blocks.length; k++) if (blocks[k].t === "h") h = blocks[k];
+  return h;
 }
 
 export function runSearch(query) {
@@ -49,12 +57,24 @@ function searchNotebook(nb, q) {
   nb.blocks.forEach((b, i) => {
     if (b.t !== "text" && b.t !== "code" && b.t !== "h") return;
     const v = b.v || "";
-    for (const p of matchAll(v, q))
-      M.push({ nb: nb.id, i, p, n: q.length, snippet: snippet(v, p, q.length), here: nb.id === S.cur });
+    for (const p of matchAll(v, q)) {
+      const h = b.t === "h" ? b : noteOf(nb, i);
+      M.push({
+        nb: nb.id, i, p, n: q.length, html: snippet(v, p, q.length),
+        note: h ? noteTitle(h) : null,
+        here: nb.id === S.cur,
+      });
+    }
   });
-  // tag hits count too
-  if ((nb.tags || []).some((t) => t.toLowerCase().includes(q)))
-    M.push({ nb: nb.id, i: -1, p: 0, n: q.length, snippet: "tagged #" + nb.tags.filter((t) => t.toLowerCase().includes(q)).join(" #"), here: nb.id === S.cur });
+  // tag hits count too — notebook-level and note-level
+  const tagHits = (nb.tags || []).filter((t) => t.toLowerCase().includes(q));
+  if (tagHits.length)
+    M.push({ nb: nb.id, i: -1, p: 0, n: q.length, html: "tagged " + tagHits.map((t) => "<mark>#" + esc(t) + "</mark>").join(" "), note: null, here: nb.id === S.cur });
+  for (const b of (nb.blocks || [])) {
+    const hits = (b.meta?.tags || []).filter((t) => t.toLowerCase().includes(q));
+    if (hits.length)
+      M.push({ nb: nb.id, i: nb.blocks.indexOf(b), p: 0, n: q.length, html: "note tagged " + hits.map((t) => "<mark>#" + esc(t) + "</mark>").join(" "), note: b.t === "h" ? noteTitle(b) : null, here: nb.id === S.cur });
+  }
 }
 
 function renderPanel() {
@@ -65,24 +85,35 @@ function renderPanel() {
     box.append(el("div", { class: "sr-empty", text: $("#sq")?.value ? "No matches anywhere in this notebook collection." : "Start typing to search every notebook — headings, text, code and tags." }));
     return;
   }
-  const here = M.filter((m) => m.here), other = M.filter((m) => !m.here);
-  const group = (label, arr) => {
-    if (!arr.length) return;
-    box.append(el("div", { class: "sr-head", text: label }));
-    arr.forEach((m, k) => {
-      const n = nbById(m.nb);
+  // group hits by notebook, current first — like an IDE's search panel
+  const hereId = S.cur;
+  const groups = new Map();
+  for (const m of M) {
+    if (!groups.has(m.nb)) groups.set(m.nb, []);
+    groups.get(m.nb).push(m);
+  }
+  const ordered = [...groups.entries()].sort((a, b) => (b[0] === hereId) - (a[0] === hereId));
+
+  for (const [nbId, items] of ordered) {
+    const n = nbById(nbId);
+    const head = el("div", { class: "sr-grp" },
+      el("span", { class: "sr-grp-n", text: n ? titleOf(n) : "?" }),
+      el("span", { class: "dim small", text: n ? n.name : "" }),
+      el("span", { class: "sp" }),
+      el("span", { class: "pill sm", text: items.length + " match" + (items.length === 1 ? "" : "es") }),
+    );
+    box.append(head);
+    for (const m of items) {
       const idx = M.indexOf(m);
       box.append(el("div", {
         class: "sr" + (idx === mi ? " on" : ""),
         onclick: () => { mi = idx; goto(m); },
       },
-        el("div", { class: "sr-title", text: (n ? titleOf(n) : "?") + (m.here ? "" : "  ·  " + (n ? n.name : "")) }),
-        el("div", { class: "sr-snip", text: m.snippet }),
+        m.note ? el("div", { class: "sr-note", text: "◈ " + m.note }) : null,
+        el("div", { class: "sr-snip", html: m.html }),
       ));
-    });
-  };
-  group("In this notebook", here);
-  group("Other notebooks", other);
+    }
+  }
   const sc = $("#scount");
   if (sc) sc.textContent = M.length ? `${Math.min(mi + 1, M.length)}/${M.length}` : "0/0";
 }

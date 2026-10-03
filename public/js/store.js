@@ -13,18 +13,32 @@ export const STATUS_LABEL = { unsolved: "Unsolved", solved: "Solved", revised: "
 /** Days until the next review, per knowledge state. Grows as you get stronger. */
 export const INTERVAL = { learning: 1, familiar: 3, strong: 7, mastered: 21 };
 
+/** Empty per-note metadata (problem link, difficulty, learning state, tags…). */
+export function freshNoteMeta() {
+  return {
+    url: "", source: "", difficulty: "", status: "unsolved", strength: "learning",
+    tags: [], related: [], mistakes: [], reviews: [], dueAt: 0,
+  };
+}
+
 export function freshNotebook(name = "Untitled.md", group = null) {
+  // A notebook opens with its first note already started: a heading carries the
+  // problem title and its own metadata strip.
+  const title = name.replace(/\.(md|txt)$/i, "");
   return {
     id: uid(),
     name,
     group,
     order: Date.now(),
     tags: [],
-    meta: { url: "", source: "", difficulty: "", status: "unsolved", strength: "learning", related: [] },
+    meta: freshNoteMeta(),
     mistakes: [],
     reviews: [],
     dueAt: 0,
-    blocks: [{ t: "text", v: "" }],
+    blocks: [
+      { t: "h", v: title, l: 2, meta: freshNoteMeta() },
+      { t: "text", v: "" },
+    ],
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
@@ -40,8 +54,10 @@ export function normalize(n) {
     order: n.order ?? n.createdAt ?? Date.now(),
     tags: Array.isArray(n.tags) ? n.tags : [],
     meta: Object.assign(
-      { url: "", source: "", difficulty: "", status: "unsolved", strength: "learning", related: [] },
+      freshNoteMeta(),
+      { related: undefined },
       n.meta || {},
+      { related: Array.isArray(n.meta?.related) ? n.meta.related : [] },
     ),
     mistakes: Array.isArray(n.mistakes) ? n.mistakes : [],
     reviews: Array.isArray(n.reviews) ? n.reviews : [],
@@ -54,11 +70,20 @@ export function normalize(n) {
   for (const b of nb.blocks) {
     if (!b || !b.t) continue;
     if (b.t === "text") b.v = String(b.v ?? "");
-    if (b.t === "h") { b.v = String(b.v ?? ""); b.l = Math.min(6, Math.max(1, b.l || 2)); }
+    if (b.t === "h") {
+      b.v = String(b.v ?? "");
+      b.l = Math.min(6, Math.max(1, b.l || 2));
+      // each note (heading) owns its metadata strip
+      b.meta = b.meta && typeof b.meta === "object" ? Object.assign(freshNoteMeta(), b.meta) : null;
+    }
     if (b.t === "img") { b.src = b.src || ""; b.name = b.name || "image"; }
     if (b.t === "vis") { b.code = b.code || ""; b.name = b.name || ""; b.h = b.h || 320; }
     if (b.t === "code") { b.v = String(b.v ?? ""); b.lang = b.lang || ""; b.open = b.open ?? true; }
   }
+  // one-time migration: legacy notebook-level meta lands on the first note
+  const firstH = nb.blocks.find((b) => b.t === "h");
+  if (firstH && !firstH.meta && (nb.meta.url || nb.meta.difficulty || nb.meta.status !== "unsolved" || nb.meta.strength !== "learning"))
+    firstH.meta = Object.assign(freshNoteMeta(), nb.meta);
   return nb;
 }
 
@@ -171,11 +196,64 @@ export function recordReview(nb, strengthBefore, grade) {
   return nb.meta.strength;
 }
 
-/** A notebook is due when its scheduled review has come up AND it actually has
- *  something to review. Brand-new or empty notebooks never show up in revision. */
+/** Same, but for one note (a heading block) instead of the whole notebook. */
+export function recordNoteReview(nb, b, grade) {
+  if (!b?.meta) return null;
+  const m = b.meta;
+  const s = m.strength;
+  m.reviews.push({ at: Date.now(), strength: s, grade });
+  m.strength = grade === "again" ? "learning" : STRENGTHS[Math.max(STRENGTHS.indexOf(s), grade === "good" ? 1 : 0)];
+  if (grade === "easy" && m.strength !== "mastered")
+    m.strength = STRENGTHS[Math.min(3, STRENGTHS.indexOf(m.strength) + 1)];
+  m.dueAt = Date.now() + (INTERVAL[m.strength] || 1) * DAY;
+  m.status = m.status === "unsolved" ? "solved" : m.status;
+  save(nb, { blocks: nb.blocks, updatedAt: Date.now() });
+  return m.strength;
+}
+
+/** A notebook is due when any of its notes is due. Empty notebooks never show up
+ *  in revision. */
 export function dueNow(nb) {
   if (!nb || !hasContent(nb)) return false;
-  return nb.dueAt ? nb.dueAt <= Date.now() : nb.meta.status === "revised" || nb.meta.status === "strong";
+  return notesOf(nb).some((b) => noteDue(nb, b));
+}
+
+/** Blocks of one note: from its heading up to (not including) the next heading. */
+export function noteBlocks(nb, b) {
+  const i = nb.blocks.indexOf(b);
+  if (i < 0) return [];
+  const out = [];
+  for (let k = i; k < nb.blocks.length; k++) {
+    if (k > i && nb.blocks[k].t === "h") break;
+    out.push(nb.blocks[k]);
+  }
+  return out;
+}
+
+/** Plain text of one note, used for search snippets and AI context. */
+export function noteBodyText(nb, b) {
+  return noteBlocks(nb, b)
+    .map((x) => (x.t === "text" || x.t === "code" ? x.v : x.t === "h" ? x.v : ""))
+    .join("\n");
+}
+
+/** Does this note carry anything beyond its title? */
+export function noteHasBody(nb, b) {
+  if (!b) return false;
+  return noteBlocks(nb, b)
+    .slice(1)
+    .some((x) => (x.t === "text" || x.t === "code" ? x.v : "").trim().length > 0);
+}
+
+/** A note is due when its own scheduled review has come up and it has a body. */
+export function noteDue(nb, b) {
+  if (!b || !b.meta || !noteHasBody(nb, b)) return false;
+  return b.meta.dueAt ? b.meta.dueAt <= Date.now() : b.meta.status === "revised" || b.meta.status === "strong";
+}
+
+/** All notes (heading blocks) of a notebook, in document order. */
+export function notesOf(nb) {
+  return (nb.blocks || []).filter((b) => b.t === "h");
 }
 
 /** Does this notebook contain anything worth reviewing? */

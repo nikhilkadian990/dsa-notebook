@@ -1,6 +1,6 @@
 // In-memory application state + derived helpers.
 import { $ } from "./util.js";
-import { save, saveProfile, STRENGTH_LABEL, STATUS_LABEL } from "./store.js";
+import { save, saveProfile, STRENGTH_LABEL, STATUS_LABEL, notesOf, noteBlocks } from "./store.js";
 
 export const S = {
   uid: null,
@@ -55,16 +55,26 @@ export function persistPrefs() {
   saveProfile({ prefs: { ...S.prefs } });
 }
 
-/** All tags across every notebook with counts, alphabetically. */
+/** All tags across every notebook and note, alphabetically. */
 export function allTags() {
   const m = new Map();
-  for (const nb of S.notebooks)
-    for (const t of nb.tags || []) m.set(t, (m.get(t) || 0) + 1);
+  const bump = (t) => m.set(t, (m.get(t) || 0) + 1);
+  for (const nb of S.notebooks) {
+    for (const t of nb.tags || []) bump(t);
+    for (const b of notesOf(nb)) for (const t of b.meta?.tags || []) bump(t);
+  }
   return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 }
 
 export function findByTag(tag) {
-  return S.notebooks.filter((f) => (f.tags || []).includes(tag));
+  return S.notebooks.filter(
+    (f) => (f.tags || []).includes(tag) || notesOf(f).some((b) => (b.meta?.tags || []).includes(tag)),
+  );
+}
+
+/** Title of a single note (its heading text). */
+export function noteTitle(b) {
+  return (b?.v || "").trim() || "(untitled note)";
 }
 
 export function nbById(id) {

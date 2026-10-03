@@ -212,18 +212,25 @@ export function noteContext(nb, limit = 7000) {
   return (head + "\n\n" + body).slice(0, limit);
 }
 
-/** Compact context for a whole review session (used by the revision-sheet feature). */
+/** Compact context for a whole review session (used by the revision-sheet feature).
+ *  Items may be notebooks (legacy) or { nb, b } note items. */
 export function sessionContext(list, limit = 6000) {
-  const lines = list.map((nb, i) => {
-    const last = nb.reviews?.length ? nb.reviews[nb.reviews.length - 1].at : 0;
+  const lines = list.map((item, i) => {
+    const isNote = !!item?.b;
+    const nb = isNote ? item.nb : item;
+    const b = isNote ? item.b : null;
+    const m = b ? b.meta : nb.meta;
+    const last = m?.reviews?.length ? m.reviews[m.reviews.length - 1].at : (nb.reviews?.length ? nb.reviews[nb.reviews.length - 1].at : 0);
+    const tags = m?.tags?.length ? m.tags : nb.tags;
+    const title = b ? (b.v || "(untitled)") : titleOf(nb);
     return [
-      i + 1 + ". " + titleOf(nb),
-      "   tags: " + ((nb.tags || []).length ? nb.tags.map((t) => "#" + t).join(" ") : "—"),
-      "   knowledge: " + (STRENGTH_LABEL[nb.meta?.strength] || "Learning") +
-      " · status: " + (STATUS_LABEL[nb.meta?.status] || "Unsolved") +
+      i + 1 + ". " + title + (isNote ? "  (" + nb.name + ")" : ""),
+      "   tags: " + ((tags || []).length ? tags.map((t) => "#" + t).join(" ") : "—"),
+      "   knowledge: " + (STRENGTH_LABEL[m?.strength] || "Learning") +
+      " · status: " + (STATUS_LABEL[m?.status] || "Unsolved") +
       (nb.group ? " · folder: " + nb.group : ""),
       last ? "   last reviewed: " + new Date(last).toISOString().slice(0, 10) : "   never reviewed",
-      nb.mistakes?.length ? "   mistakes logged: " + nb.mistakes.length : null,
+      m?.mistakes?.length ? "   mistakes logged: " + m.mistakes.length : (nb.mistakes?.length ? "   mistakes logged: " + nb.mistakes.length : null),
     ].filter(Boolean).join("\n");
   });
   return lines.join("\n\n").slice(0, limit);
@@ -361,15 +368,19 @@ export async function aiNote(nb, extra = "") {
   );
 }
 
-/** Ask the AI to write recall questions for this note. Resolves to [{q, a}]. */
-export async function aiRecallQuestions(nb) {
+/** Ask the AI to write recall questions for a note. Accepts either a notebook
+ *  (legacy) or raw note text plus its notebook/heading (per-note scope). */
+export async function aiRecallQuestions(nbOrText, nb, b) {
+  const ctx = typeof nbOrText === "string"
+    ? "Note: " + (b ? (b.v || "(untitled)") + "\nNotebook: " + nb.name + "\n\n" : "") + nbOrText
+    : noteContext(nbOrText, 5000);
   const { text } = await chat(
     [
       { role: "system", content: FEATURES.recall.system },
       {
         role: "user",
-        content: "Write active-recall questions for this note.\n\n=== NOTEBOOK ===\n" +
-          noteContext(nb, 5000) + "\n=== END ===",
+        content: "Write active-recall questions for this note.\n\n=== NOTE ===\n" +
+          ctx + "\n=== END ===",
       },
     ],
     { feature: "recall" },
@@ -386,8 +397,9 @@ export function parseQA(text) {
   return out.filter((x) => x.q && x.a);
 }
 
-/** Judge a learner's answer against the note. */
-export async function aiCheck(nb, question, answer) {
+/** Judge a learner's answer against the note. Accepts a notebook or raw text. */
+export async function aiCheck(nbOrText, question, answer) {
+  const ctx = typeof nbOrText === "string" ? nbOrText : noteContext(nbOrText, 4000);
   return chat(
     [
       { role: "system", content: FEATURES.check.system },
@@ -396,7 +408,7 @@ export async function aiCheck(nb, question, answer) {
         content:
           "Question the learner is answering:\n" + question +
           "\n\nLearner's answer:\n" + (answer || "(left blank)") +
-          "\n\nReference note:\n" + noteContext(nb, 4000),
+          "\n\nReference note:\n" + ctx,
       },
     ],
     { feature: "check" },

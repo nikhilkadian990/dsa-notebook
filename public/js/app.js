@@ -5,7 +5,6 @@ import { start, saveNow, saveProfile, dueNow, pendingCount } from "./store.js";
 import * as ed from "./editor.js";
 import { renderFiles, newGroup } from "./sidebar.js";
 import { runSearch, openSearch, closeSearch, step } from "./search.js";
-import { renderMeta } from "./meta.js";
 import { renderTags, renderDashboard } from "./views.js";
 import { renderSettings } from "./settings.js";
 import { openPalette } from "./palette.js";
@@ -41,7 +40,7 @@ function boot() {
   sky();
   sideUI();
   ed.render();
-  renderMeta();
+  
   renderFiles();
   syncUI();
   syncInsertBar();
@@ -58,7 +57,7 @@ function boot() {
 /* Called after any structural data change (new/delete/import/tag edits). */
 export function afterDataChange() {
   renderFiles();
-  renderMeta();
+  
   syncInsertBar();
   if (S.view === "tags") renderTags();
   if (S.view === "dashboard") renderDashboard();
@@ -83,13 +82,13 @@ export function showView(v) {
   if (v === "tags") renderTags();
   if (v === "dashboard") renderDashboard();
   if (v === "settings") renderSettings();
-  if (editing) { ed.render(); renderMeta(); }
+  if (editing) { ed.render(); }
   syncInsertBar();
 }
 
 export function showEditor() {
   if (S.view !== "editor") showView("editor");
-  else { ed.render(); renderMeta(); }
+  else { ed.render(); }
 }
 
 export function openNotebookById(id, after) {
@@ -97,7 +96,7 @@ export function openNotebookById(id, after) {
   if (!nb) return;
   openNotebook(id);
   if (S.view !== "editor") showView("editor");
-  else { ed.render(); renderMeta(); renderFiles(); }
+  else { ed.render(); renderFiles(); }
   if (after) setTimeout(after, 30);
   // mobile: close the drawer after picking a notebook
   if (innerWidth <= 900) closeDrawers();

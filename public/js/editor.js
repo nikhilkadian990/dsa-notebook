@@ -11,6 +11,7 @@
 import { $, el, btn, uid, toast, dl } from "./util.js";
 import { hl, code as hlCode, md } from "./md.js";
 import { cur, mark, nbById, S } from "./state.js";
+import { STRENGTH_LABEL, STATUS_LABEL } from "./store.js";
 
 /* ---------- normalization: keep exactly one text block between others ---------- */
 export function norm(f) {
@@ -135,7 +136,7 @@ function textKeys(e, ta, i) {
 }
 
 function mkHeading(b, i) {
-  const inp = el("input", { class: "hd", value: b.v, placeholder: "Heading", spellcheck: false });
+  const inp = el("input", { class: "hd", value: b.v, placeholder: "Note / question title", spellcheck: false });
   inp.addEventListener("input", () => {
     b.v = inp.value;
     renderOutline();
@@ -148,7 +149,48 @@ function mkHeading(b, i) {
     else if (e.key === "ArrowUp") { e.preventDefault(); go(i - 1, -1, true); }
     else if (e.key === "Backspace" && !inp.value) { e.preventDefault(); rm(i); }
   });
-  return el("div", {}, inp);
+
+  // a note always has metadata attached to its heading; normalize lazily so old
+  // notebooks get a strip the moment their heading is rendered
+  if (!b.meta) b.meta = null;
+
+  const wrap = el("div", { class: "nh" });
+  const head = el("div", { class: "nh-h" },
+    el("button", {
+      class: "ib nh-btn", title: "Note settings — link, difficulty, stage, tags, recall", text: "⋮",
+      onclick: (e) => {
+        e.stopPropagation();
+        const was = body.classList.contains("hidden");
+        // only one note strip open at a time, like an IDE's inline toolbar
+        pageEl().querySelectorAll(".nh-body").forEach((x) => x.classList.add("hidden"));
+        body.classList.toggle("hidden", !was);
+      },
+    }),
+    inp,
+    el("span", { class: "nh-pills", "data-pills": "" }),
+  );
+  const body = el("div", { class: "nh-body hidden" });
+  wrap.append(head, body);
+
+  // the toolbar is built lazily and rebuilt on open so it never goes stale
+  head.querySelector(".nh-btn").addEventListener("click", () =>
+    import("./meta.js").then((m) => m.renderNoteBar(cur(), b, body, () => refreshPills())));
+
+  function refreshPills() {
+    const host = head.querySelector('[data-pills]');
+    if (!host) return;
+    host.replaceChildren();
+    const mm = b.meta;
+    if (!mm) return;
+    if (mm.difficulty) host.append(el("span", { class: "pill sm st-dif", text: mm.difficulty }));
+    if (mm.status && mm.status !== "unsolved") host.append(el("span", { class: "pill sm st-" + mm.status, text: STATUS_LABEL[mm.status] }));
+    if (mm.strength && mm.strength !== "learning") host.append(el("span", { class: "pill sm kr-" + mm.strength, text: STRENGTH_LABEL[mm.strength] }));
+    if (mm.url) host.append(el("a", { class: "pill sm lk", href: mm.url, target: "_blank", rel: "noopener", text: "problem ↗", title: mm.url }));
+    const tags = mm.tags || [];
+    if (tags.length) host.append(el("span", { class: "nh-tags", text: tags.map((t) => "#" + t).join(" ") }));
+  }
+  refreshPills();
+  return wrap;
 }
 
 function mkCode(b, i) {
@@ -282,7 +324,7 @@ export function insertBlock(nb) {
   return nb;
 }
 
-export const insHeading = () => insertBlock({ t: "h", v: "", l: 2 });
+export const insHeading = () => insertBlock({ t: "h", v: "", l: 2, meta: null });
 
 /** Dedicated code block — no backtick typing required. */
 export function insCode(lang = "java") {

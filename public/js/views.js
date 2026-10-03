@@ -1,7 +1,7 @@
 // Secondary views: the tag index and the lightweight dashboard.
 import { $, el, btn, toast, when, DAY, plural } from "./util.js";
-import { S, cur, nbById, titleOf, allTags, findByTag, openNotebook, notebooksIn } from "./state.js";
-import { dueNow } from "./store.js";
+import { S, cur, nbById, titleOf, allTags, findByTag, openNotebook, notebooksIn, noteTitle } from "./state.js";
+import { dueNow, notesOf, noteDue, noteHasBody } from "./store.js";
 
 const go = (id) => import("./app.js").then((m) => m.openNotebookById(id));
 
@@ -58,23 +58,24 @@ export function renderDashboard() {
   if (!host) return;
   host.replaceChildren();
   const f = cur();
-  const due = S.notebooks.filter(dueNow);
-  const weak = S.notebooks.filter((nb) => nb.meta.strength === "learning");
-  const mistakes = S.notebooks.filter((nb) => nb.mistakes?.length);
+  const due = dueNotes();
+  const weak = weakNotes();
+  const mistakes = mistakeNotes();
   const recent = [...S.notebooks].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5);
-  const mastered = S.notebooks.filter((nb) => nb.meta.strength === "mastered").length;
-  const pct = S.notebooks.length ? Math.round((mastered / S.notebooks.length) * 100) : 0;
+  const totalNotes = S.notebooks.reduce((n, nb) => n + notesOf(nb).filter((b) => noteHasBody(nb, b)).length, 0);
+  const mastered = S.notebooks.reduce((n, nb) => n + notesOf(nb).filter((b) => b.meta?.strength === "mastered").length, 0);
+  const pct = totalNotes ? Math.round((mastered / totalNotes) * 100) : 0;
 
   host.append(el("h2", { class: "vh", text: "DSA Notebook" }),
-    el("p", { class: "dim small vsub", text: S.notebooks.length ? plural(S.notebooks.length, "notebook") + " · " + pct + "% mastered" : "Welcome — start with your first notebook." }));
+    el("p", { class: "dim small vsub", text: totalNotes ? plural(totalNotes, "note") + " in " + plural(S.notebooks.length, "notebook") + " · " + pct + "% mastered" : "Welcome — start with your first notebook." }));
 
   const quick = el("div", { class: "dquick" },
     qBtn("＋ New notebook", "Alt+N", () => import("./sidebar.js").then((m) => m.newFile()), true),
     qBtn("↻ Review today", due.length + " due", () => import("./revise.js").then((m) => m.openRevise()), true),
+    qBtn("◈ Recall a file", "whole-file self-test", () => import("./revise.js").then((m) => m.filePicker()), true),
     qBtn("⌕ Search", "Ctrl+F", () => import("./search.js").then((m) => m.openSearch())),
     qBtn("# Browse tags", allTags().length + " tags", () => import("./app.js").then((m) => m.showView("tags"))),
     qBtn("✦ AI prompt", "for this note", () => f && import("./ai.js").then((m) => m.promptDialog(f))),
-    qBtn("◈ Recall", "this note", () => f && import("./recall.js").then((m) => m.start(f))),
     qBtn("⇩ Export", "backup all", () => import("./io.js").then((m) => m.exportDialog())),
     qBtn("⚙ Settings", "AI, backup, prefs", () => import("./app.js").then((m) => m.showView("settings"))),
   );
@@ -90,20 +91,48 @@ export function renderDashboard() {
     )));
 
   grid.append(card("Due today (" + due.length + ")",
-    due.length ? listOf(due, (nb) => "due " + when(nb.dueAt)) : el("div", { class: "dim small", text: "Nothing due — you are caught up." }),
+    due.length ? listOfNotes(due, (it) => "due " + when(it.b.meta.dueAt)) : el("div", { class: "dim small", text: "Nothing due — you are caught up." }),
     due.length ? btn("Start review", () => import("./revise.js").then((m) => m.openRevise()), "b sm") : null));
 
   grid.append(card("Recently edited",
     recent.length ? listOf(recent, (nb) => when(nb.updatedAt)) : el("div", { class: "dim small", text: "No notebooks yet." })));
 
   if (weak.length)
-    grid.append(card("Still learning (" + weak.length + ")", listOf(weak, (nb) => STRENGTH[nb.meta.strength])));
+    grid.append(card("Still learning (" + weak.length + ")", listOfNotes(weak, (it) => STRENGTH[it.b.meta?.strength] || "Learning")));
 
   if (mistakes.length)
-    grid.append(card("Mistakes to review", listOf(mistakes, (nb) => plural(nb.mistakes.length, "mistake")),
-      btn("Review mistakes", () => import("./revise.js").then((m) => { m.openRevise(); }), "b sm")));
+    grid.append(card("Mistakes to review", listOfNotes(mistakes, (it) => plural(it.b.meta.mistakes.length, "mistake")),
+      btn("Review mistakes", () => import("./revise.js").then((m) => m.openRevise()), "b sm")));
 
   host.append(grid);
+}
+
+/** Due / weak / mistake items are { nb, b } note pairs. */
+function dueNotes() {
+  const out = [];
+  for (const nb of S.notebooks) for (const b of notesOf(nb)) if (noteDue(nb, b)) out.push({ nb, b });
+  return out;
+}
+function weakNotes() {
+  const out = [];
+  for (const nb of S.notebooks) for (const b of notesOf(nb))
+    if (noteHasBody(nb, b) && (b.meta?.strength === "learning" || b.meta?.strength === "familiar")) out.push({ nb, b });
+  return out;
+}
+function mistakeNotes() {
+  const out = [];
+  for (const nb of S.notebooks) for (const b of notesOf(nb)) if (b.meta?.mistakes?.length) out.push({ nb, b });
+  return out;
+}
+
+function listOfNotes(items, sub) {
+  const box = el("div");
+  for (const it of [...items].sort((a, b) => (a.b.meta?.dueAt || a.nb.updatedAt) - (b.b.meta?.dueAt || b.nb.updatedAt)).slice(0, 6))
+    box.append(el("div", { class: "dli", tabindex: 0, onclick: () => go(it.nb.id), onkeydown: (e) => e.key === "Enter" && go(it.nb.id) },
+      el("span", { class: "dli-n", text: noteTitle(it.b) }),
+      el("span", { class: "dim small", text: (sub ? sub(it) : "") + " · " + it.nb.name }),
+    ));
+  return box;
 }
 
 function qBtn(text, sub, fn, primary) {
