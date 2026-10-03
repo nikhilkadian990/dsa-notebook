@@ -1,7 +1,7 @@
 // Left sidebar: IDE-style notebook tree inside folders, plus the tag index.
 import { $, el, btn, uid, toast, ask } from "./util.js";
 import { S, cur, openNotebook, allFolders, notebooksIn, nbById, mark, allTags, findByTag, persistFolders } from "./state.js";
-import { freshNotebook, remove, save, normalize } from "./store.js";
+import { freshNotebook, remove, save, normalize, untombstone } from "./store.js";
 
 export function renderFiles() {
   const L = $("#flist");
@@ -236,6 +236,7 @@ function delF(f) {
     if (!t || t.classList.contains("hidden")) return;
     t.append(el("button", { class: "b sm", text: "Undo", onclick: () => {
       const nb = normalize(undo);
+      untombstone(nb.id);
       S.notebooks.push(nb);
       save(nb);
       S.cur = nb.id;

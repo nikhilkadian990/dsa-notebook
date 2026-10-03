@@ -228,22 +228,148 @@ function mkCode(b, i) {
     tog.textContent = b.open === false ? "Expand" : "Collapse";
   };
   paint();
-  const edit = btn("Edit", () => {
-    const v = prompt("Edit code (Tab = 2 spaces inside the field is preserved):", b.v);
-    if (v !== null) { b.v = v; paint(); mark(cur()); }
+
+  /* The editor itself: a textarea that swaps in for the highlighted <pre>, so
+     code is edited in place (not a one-line prompt). It starts one line tall and
+     grows with what you type. */
+  const ta = el("textarea", {
+    class: "ce hidden", spellcheck: false, rows: 1,
+    placeholder: "Type code…  Tab indents 4 spaces, Enter auto-indents, ( { [ \" ' close themselves",
   });
-  return el(
+  const grow = () => {
+    ta.style.height = "auto";
+    ta.style.height = ta.scrollHeight + "px";
+  };
+  const begin = () => {
+    if (b.open === false) { b.open = true; mark(cur()); }
+    ta.value = b.v;
+    paint();
+    pre.classList.add("hidden");
+    ta.classList.remove("hidden");
+    grow();
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+  };
+  const end = () => {
+    if (!ta.classList.contains("hidden")) {
+      ta.classList.add("hidden");
+      pre.classList.remove("hidden");
+      paint();
+    }
+  };
+  ta.addEventListener("input", () => {
+    b.v = ta.value;
+    grow();
+    paint();
+    mark(cur());
+  });
+  ta.addEventListener("keydown", (e) => codeKeys(e, ta, i));
+  ta.addEventListener("blur", end);
+  // click the highlighted block to edit it in place
+  pre.addEventListener("click", begin);
+
+  const root = el(
     "section",
     { class: "blk cblk" },
     el("div", { class: "bar" },
       el("span", { class: "tag-dot", text: "code" }),
       langSel,
       el("span", { class: "sp" }),
-      copy, tog, edit,
+      copy, tog, btn("Edit", begin),
       btn("Delete", () => rm(i)),
     ),
     pre,
+    ta,
   );
+  root._edit = begin; // lets insCode() drop straight into editing a fresh block
+  return root;
+}
+
+/* ---------- code editor behaviour: auto-grow, auto-indent, auto-close pairs ---------- */
+const INDENT = "    "; // 4 spaces (default)
+const PAIRS = { "(": ")", "[": "]", "{": "}" };
+const CLOSES = ")]}";
+const QUOTES = { '"': '"', "'": "'", "`": "`" };
+
+/** Fire an input event from the element's own realm, so the block and its
+ *  highlight stay in sync wherever the editor runs. */
+function fireInput(ta) {
+  const Ctor = ta.ownerDocument?.defaultView?.Event || Event;
+  ta.dispatchEvent(new Ctor("input", { bubbles: true }));
+}
+
+/** Replace the selection, then place the caret `back` characters before the end
+ *  of the insert. Fires input so the block and its highlight stay in sync. */
+function type(ta, text, back = 0) {
+  const s = ta.selectionStart, e = ta.selectionEnd;
+  ta.value = ta.value.slice(0, s) + text + ta.value.slice(e);
+  ta.selectionStart = ta.selectionEnd = s + text.length - back;
+  fireInput(ta);
+}
+
+/** Indent or dedent every line the selection touches (Shift+Tab / Tab on lines). */
+function indentSel(ta, dedent) {
+  const s = ta.selectionStart, e = ta.selectionEnd, v = ta.value;
+  const ls = v.lastIndexOf("\n", s - 1) + 1;
+  const le = v.indexOf("\n", e);
+  const end = le === -1 ? v.length : le;
+  const lines = v.slice(ls, end).split("\n");
+  const out = lines.map((l) => (dedent ? l.replace(/^ {1,4}/, "") : INDENT + l)).join("\n");
+  ta.value = v.slice(0, ls) + out + v.slice(end);
+  ta.selectionStart = ls;
+  ta.selectionEnd = ls + out.length;
+  fireInput(ta);
+}
+
+/** Enter: keep the current line's indentation, and indent one level deeper when
+ *  the line ends with an opener. */
+function newLine(ta) {
+  const s = ta.selectionStart, v = ta.value;
+  const line = v.slice(v.lastIndexOf("\n", s - 1) + 1, s);
+  const ind = (/^[ \t]*/.exec(line) || [""])[0];
+  let add = "\n" + ind;
+  if (/[({[]\s*$/.test(line.replace(/\/\/.*$/, ""))) add += INDENT;
+  type(ta, add);
+}
+
+function codeKeys(e, ta, i) {
+  if (e.altKey || e.ctrlKey || e.metaKey) return; // leave app shortcuts alone
+  const s = ta.selectionStart, en = ta.selectionEnd, v = ta.value;
+  if (e.key === "Tab") {
+    e.preventDefault();
+    if (e.shiftKey) indentSel(ta, true);
+    else if (s !== en) indentSel(ta, false);
+    else type(ta, INDENT);
+    return;
+  }
+  if (e.key === "Enter") { e.preventDefault(); newLine(ta); return; }
+  // step over a closing bracket the editor already paired for us
+  if (CLOSES.includes(e.key) && s === en && v[en] === e.key) {
+    e.preventDefault();
+    ta.selectionStart = ta.selectionEnd = en + 1;
+    return;
+  }
+  // `}` on an indented line outdents first
+  if (e.key === "}" && s === en && /^[ \t]+$/.test(v.slice(v.lastIndexOf("\n", s - 1) + 1, s))) {
+    e.preventDefault();
+    const ls = v.lastIndexOf("\n", s - 1) + 1;
+    const cut = v.slice(ls, s).replace(/ {1,4}$/, "");
+    ta.value = v.slice(0, ls) + cut + "}" + v.slice(s);
+    ta.selectionStart = ta.selectionEnd = ls + cut.length + 1;
+    fireInput(ta);
+    return;
+  }
+  const close = PAIRS[e.key] || QUOTES[e.key];
+  if (close !== undefined) {
+    // an apostrophe stuck to a word ("don't") is not an opening quote
+    if (QUOTES[e.key] && s === en && /\w/.test(v[s - 1] || "")) return;
+    e.preventDefault();
+    if (s === en) type(ta, e.key + close, 1); // pair around the caret
+    else type(ta, e.key + v.slice(s, en) + close); // wrap the selection
+    return;
+  }
+  if (e.key === "ArrowUp" && s === 0) { e.preventDefault(); go(i - 1, -1, true); }
+  else if (e.key === "ArrowDown" && en === v.length) { e.preventDefault(); go(i + 1, 1, false); }
 }
 
 function mkImg(b, i) {
@@ -331,17 +457,18 @@ export function insertBlock(nb) {
   render();
   const k = bl.indexOf(nb);
   focusAt(nb.t === "h" ? k : k + 1, 0);
-  if (nb.t === "h") pageEl().children[k].scrollIntoView({ block: "center" });
+  if (nb.t === "h") pageEl().children[k].scrollIntoView?.({ block: "center" });
   return nb;
 }
 
 export const insHeading = () => insertBlock({ t: "h", v: "", l: 2, meta: null });
 
-/** Dedicated code block — no backtick typing required. */
+/** Dedicated code block — no backtick typing required. A fresh block drops
+ *  straight into the in-place editor: one empty line that grows as you type. */
 export function insCode(lang = "java") {
-  insertBlock({ t: "code", v: "", lang, open: true });
-  const f = cur(), i = f.blocks.findIndex((b) => b.t === "code");
-  if (i > 0) focusAt(i, 0);
+  const nb = insertBlock({ t: "code", v: "", lang, open: true });
+  const f = cur(), i = f.blocks.indexOf(nb);
+  pageEl().children[i]?._edit?.();
 }
 
 /* ---------- outline ---------- */
@@ -367,7 +494,7 @@ export function renderOutline() {
 export function jump(i) {
   const c = pageEl().children[i];
   if (!c) return;
-  c.scrollIntoView({ block: "start" });
+  c.scrollIntoView?.({ block: "start" });
   const t = c.querySelector("input");
   t && t.focus({ preventScroll: true });
 }

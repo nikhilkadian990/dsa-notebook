@@ -149,6 +149,68 @@ export function save(nb, fields = null) {
 /** Number of notebooks with unsaved edits waiting for the debounce. */
 export const pendingCount = () => pending.size;
 
+/** Ids of notebooks with writes still queued in the debounce window. A server
+ *  snapshot arriving now cannot possibly contain these edits yet. */
+export const pendingIds = () => [...pending.keys()];
+
+/** True when the live copy and the server copy carry the same visible content.
+ *  Used to decide whether an incoming snapshot actually changes what the editor
+ *  is showing (a no-op replacement must not re-render and drop the caret). */
+function sameContent(a, b) {
+  return (
+    a.name === b.name &&
+    a.group === b.group &&
+    JSON.stringify(a.blocks) === JSON.stringify(b.blocks) &&
+    JSON.stringify(a.tags) === JSON.stringify(b.tags) &&
+    JSON.stringify(a.meta) === JSON.stringify(b.meta) &&
+    JSON.stringify(a.mistakes) === JSON.stringify(b.mistakes) &&
+    JSON.stringify(a.reviews) === JSON.stringify(b.reviews)
+  );
+}
+
+/** Ids deleted locally this session. A snapshot echo that still carries one
+ *  (the delete is still queued, or the echo is stale) must not bring it back. */
+const tombstones = new Set();
+export const tombstone = (id) => tombstones.add(id);
+export const untombstone = (id) => tombstones.delete(id);
+
+/** Fold a Firestore snapshot into the live list without discarding editor edits.
+ *
+ * A snapshot can land at any moment — inside the save debounce window, or in the
+ * breath between a flush and its write acknowledgement — so replacing the list
+ * outright would silently throw away what the user just typed and leave the
+ * editor's closures writing into an orphaned object (the "my note went blank
+ * when I added a second headline" bug).
+ *
+ * The live copy wins while writes are queued, and also whenever the server copy
+ * is not strictly newer: our own write echoes back with the same timestamp, and
+ * swapping in that echo would orphan the editor for no benefit. Only a genuinely
+ * newer server copy replaces the local one, and `changed` reports those so the
+ * view can refresh safely. Returns `{ list, changed }`. */
+export function mergeSnapshots(local, incoming, liveIds) {
+  const live = new Set(liveIds);
+  const out = [];
+  const changed = [];
+  for (const inc of incoming) {
+    if (tombstones.has(inc.id)) continue; // deleted locally: stays deleted
+    const loc = local.find((x) => x.id === inc.id);
+    if (loc && (live.has(inc.id) || (inc.updatedAt || 0) <= (loc.updatedAt || 0))) {
+      out.push(loc);
+      continue;
+    }
+    if (loc && !sameContent(loc, inc)) changed.push(inc.id);
+    out.push(inc);
+  }
+  // a brand-new local notebook whose queued write the server has not echoed yet
+  for (const loc of local)
+    if (live.has(loc.id) && !out.some((x) => x.id === loc.id)) out.push(loc);
+  // a snapshot that no longer mentions a tombstoned notebook means the delete
+  // was acknowledged, so the tombstone can go
+  for (const id of tombstones)
+    if (!incoming.some((x) => x.id === id)) tombstones.delete(id);
+  return { list: out, changed };
+}
+
 async function flush(nbId) {
   const p = pending.get(nbId);
   if (!p) return;
@@ -170,6 +232,7 @@ export async function saveNow(nb) {
 export async function remove(nbId) {
   const p = pending.get(nbId);
   if (p) { clearTimeout(p.timer); pending.delete(nbId); }
+  tombstone(nbId); // a stale snapshot echo must not resurrect it
   try { await deleteDoc(path(nbId)); } catch (e) { /* offline: gone locally */ }
 }
 

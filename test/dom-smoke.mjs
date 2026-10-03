@@ -124,6 +124,72 @@ check("rapid open+close keeps the toolbar closed", heads[0].querySelector(".nh-b
   ed.rm($$("#page").length ? ed.pageEl().children.length - 1 : 0);
 }
 
+/* ---------- code blocks: edited in place, not through a prompt ---------- */
+{
+  const before = $$("#page .cblk").length;
+  ed.insCode("java");
+  await flush();
+  const cblk = $$("#page .cblk").pop();
+  check("inserting a code block renders its block", !!cblk && $$("#page .cblk").length === before + 1);
+  const ce = cblk.querySelector("textarea.ce");
+  check("a fresh code block opens its in-place editor", !!ce && dom.window.document.activeElement === ce);
+  check("the fresh editor is one empty line", ce?.value === "");
+
+  const key = (k) => ce.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: k, bubbles: true }));
+  const set = (v, p) => { ce.value = v; ce.selectionStart = ce.selectionEnd = p; };
+
+  set("", 0);
+  key("(");
+  check("typing ( auto-closes the pair", ce.value === "()", "got " + JSON.stringify(ce.value));
+  check("the caret lands between the pair", ce.selectionStart === 1, "at " + ce.selectionStart);
+  key(")");
+  check("typing the closing ) steps over it", ce.value === "()" && ce.selectionStart === 2, JSON.stringify(ce.value) + " @" + ce.selectionStart);
+  set("class A {", 9);
+  key("Enter");
+  check("Enter after { indents the new line", ce.value === "class A {\n    ", JSON.stringify(ce.value));
+  key("}");
+  check("} outdents the indented line", ce.value === "class A {\n}", JSON.stringify(ce.value));
+  key("Tab");
+  check("Tab inserts 4 spaces", ce.value === "class A {\n}    ", JSON.stringify(ce.value));
+
+  const codeBlock = S.notebooks.find((x) => x.id === S.cur).blocks.find((b) => b.t === "code");
+  check("edits land in the block", codeBlock?.v === ce.value, JSON.stringify(codeBlock?.v));
+
+  ce.dispatchEvent(new dom.window.Event("blur"));
+  await flush();
+  check("leaving the editor restores the highlighted view", cblk.querySelector("textarea.ce").classList.contains("hidden"));
+  check("the highlighted view carries the code", cblk.querySelector("pre").textContent.includes("class A"));
+}
+
+/* ---------- the reported bug: a mid-edit snapshot echo must not blank the note ---------- */
+{
+  const { emitSnap } = await import("../public/js/fb.js");
+  const nb = S.notebooks.find((x) => x.name === "DSA/Arrays.md");
+  const ta = $$("#page .tb textarea").find((t) => t.value.includes("hash map"));
+  // type into the notes block — un-flushed, since the save debounce is 20s
+  ta.value = "hash map: O(n) — live edits";
+  ta.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  await flush();
+  const liveObj = S.notebooks.find((x) => x.id === nb.id);
+  check("typing reaches the notes block", liveObj.blocks.some((b) => b.t === "text" && b.v === "hash map: O(n) — live edits"));
+
+  // the server echoes a snapshot from BEFORE those edits
+  const stale = JSON.parse(JSON.stringify(liveObj));
+  stale.blocks.find((b) => b.t === "text").v = "Use a **hash map**. `O(n)` time.";
+  stale.updatedAt = liveObj.updatedAt - 5000;
+  emitSnap([stale]);
+  await flush();
+
+  const after = S.notebooks.find((x) => x.id === nb.id);
+  check("the echo keeps the live notebook object", after === liveObj);
+  check("the live notes survive the echo", after.blocks.some((b) => b.t === "text" && b.v === "hash map: O(n) — live edits"));
+
+  // adding a second headline must not blank the note above it
+  ed.insHeading();
+  await flush();
+  check("adding a second headline keeps the note above", $("#page").textContent.includes("hash map: O(n) — live edits"));
+}
+
 /* ---------- search ---------- */
 const search = await import("../public/js/search.js");
 search.openSearch();

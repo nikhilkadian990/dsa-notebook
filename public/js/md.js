@@ -52,31 +52,75 @@ export function esc(s) {
     .replace(/>/g, "&gt;");
 }
 
-/** Internal link syntax: [text](@nb:notebookId) or [text](@h:blockIndex). */
-export const LINK_RE = /\[([^\]]*)\]\((@nb:[\w-]+|@h:\d+|https?:\/\/[^\s)]+)\)/g;
+function escAttr(s) {
+  return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
 
-function withLinks(s) {
-  // runs after inline markdown so link text keeps its styling
-  return s.replace(
-    /(<span class="(?:ic|bd|it)">)?(\[[^\]]*\]\((?:@nb:[\w-]+|@h:\d+|https?:\/\/[^\s)]+)\))/g,
-    (m, span, lnk) => {
-      const [, txt, target] = /^\[([^\]]*)\]\((.*)\)$/.exec(lnk);
-      const cls = target.startsWith("@nb:") || target.startsWith("@h:") ? "lk int" : "lk";
-      return `<a class="${cls}" data-href="${esc(target)}">${span ? span : ""}${esc(txt)}${span ? "</span>" : ""}</a>`;
-    },
-  );
+export const LINK_RE = /\[([^\]]*)\]\((@nb:[\w-]+|@h:\d+|https?:\/\/[^\s)]+)\)/;
+
+/** Scan one already-escaped line for inline markup in a single left-to-right pass:
+ *  `code` spans are atomic, so emphasis can never swallow one (pasted markdown
+ *  like **Remember: `count == 0`** keeps its code span), and links keep any
+ *  styling inside their text correctly nested. */
+export function spans(s, nested) {
+  let out = "";
+  let i = 0;
+  const n = s.length;
+  while (i < n) {
+    const c = s[i];
+    // inline code: highest priority, never nested inside emphasis
+    if (c === "`") {
+      const j = s.indexOf("`", i + 1);
+      if (j > i) {
+        out += `<span class="ic">${s.slice(i + 1, j)}</span>`;
+        i = j + 1;
+        continue;
+      }
+    }
+    // link: [text](target) — rendered here so styling inside the text stays
+    // balanced instead of leaving a stray </span> after the anchor
+    if (c === "[") {
+      const m = LINK_RE.exec(s.slice(i));
+      if (m && m.index === 0) {
+        const target = m[2];
+        const cls = target.startsWith("@nb:") || target.startsWith("@h:") ? "lk int" : "lk";
+        out += `<a class="${cls}" data-href="${escAttr(target)}">${spans(m[1], false)}</a>`;
+        i += m[0].length;
+        continue;
+      }
+    }
+    if (c === "*") {
+      const bold = s[i + 1] === "*";
+      if (bold && nested) { out += c; i++; continue; } // no bold inside bold
+      const close = bold ? "**" : "*";
+      const cls = bold ? "bd" : "it";
+      // an emphasis opener must be followed by something other than a space,
+      // so bullet lists ("* item") and "5 * 3" stay literal
+      if (s[i + close.length] !== " ") {
+        let j = i + close.length, found = 0;
+        while (j < n) {
+          if (s[j] === "`") { const k = s.indexOf("`", j + 1); if (k > j) { j = k + 1; continue; } }
+          if (s.startsWith(close, j)) { found = j; break; }
+          j++;
+        }
+        if (found > i + close.length) {
+          out += `<span class="${cls}">${spans(s.slice(i + close.length, found), true)}</span>`;
+          i = found + close.length;
+          continue;
+        }
+      }
+    }
+    out += c;
+    i++;
+  }
+  return out;
 }
 
 /** Render one line of a text block into highlighted HTML. */
 export function md(ln) {
   let s = esc(ln);
-  if (/^\s*&gt;/.test(s)) return `<span class="q">${withLinks(s)}</span>`;
-  s = s.replace(/(`[^`]+`)|(\*\*[^*]+\*\*)|(\*[^*\s][^*]*\*)/g, (m, a, b) => {
-    const inner = m.slice(a ? 1 : b ? 2 : 1, a ? -1 : b ? -2 : -1);
-    const cls = a ? "ic" : b ? "bd" : "it";
-    return `<span class="${cls}">${esc(inner)}</span>`;
-  });
-  s = withLinks(s);
+  if (/^\s*&gt;/.test(s)) return `<span class="q">${spans(s, false)}</span>`;
+  s = spans(s, false);
   return s.replace(/^(\s*)([-*+]|\d+\.)(\s)/, '$1<span class="mk">$2</span>$3');
 }
 

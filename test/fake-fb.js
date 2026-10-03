@@ -23,8 +23,12 @@ export async function linkEmail() { return { user: auth.currentUser }; }
 export async function updateEmail() {}
 export async function updatePassword() {}
 
+/** onSnapshot listeners for the notebooks query (the 4-arg form). */
+const queryListeners = new Set();
+
 /** Dispatches both the 2-arg and 4-arg onSnapshot forms with an empty snapshot. */
 export function onSnapshot(ref, opts, cb, errCb) {
+  const isQuery = typeof opts === "object"; // profile doc is the 2-arg form
   const fn = typeof opts === "function" ? opts : cb;
   const snapshot = {
     docs: [],
@@ -32,7 +36,20 @@ export function onSnapshot(ref, opts, cb, errCb) {
     data: () => ({}),
     metadata: { fromCache: false, hasPendingWrites: false },
   };
+  if (isQuery) queryListeners.add(fn);
   Promise.resolve().then(() => fn(snapshot));
   void errCb;
-  return () => {};
+  return () => {
+    queryListeners.delete(fn);
+  };
+}
+
+/** Push a fake server snapshot (list of notebook docs) into the app's query
+ *  listener — used to reproduce the mid-edit snapshot-echo data-loss bug. */
+export function emitSnap(notebooks) {
+  const snapshot = {
+    docs: notebooks.map((n) => ({ exists: true, data: () => n })),
+    metadata: { fromCache: false, hasPendingWrites: false },
+  };
+  for (const fn of [...queryListeners]) fn(snapshot);
 }

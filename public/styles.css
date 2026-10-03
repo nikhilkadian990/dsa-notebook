@@ -374,10 +374,11 @@ body {
 .m { color: var(--cm); font-style: italic; }
 .mk { color: var(--acc); }
 .q { color: var(--dim); font-style: italic; }
-.ic { color: var(--str); background: #0b1411; }
+.ic { color: var(--str); background: #0b1411; padding: 0 3px; border-radius: 3px; }
 .bd { font-weight: 700; color: #fff; }
 .it { font-style: italic; color: #cfe3d7; }
-a.lk { color: var(--blue); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+a.lk { color: var(--blue); text-decoration: none; cursor: pointer; }
+a.lk:hover { text-decoration: underline; text-underline-offset: 2px; }
 a.lk.int { color: var(--grn); }
 
 .hd {
@@ -441,6 +442,27 @@ a.lk.int { color: var(--grn); }
   tab-size: 2;
 }
 .cblk pre.collapsed { max-height: 3.2em; overflow: hidden; }
+/* the in-place code editor: same metrics as the highlighted <pre> it replaces,
+   one line tall until you type, then it grows with the content */
+.cblk .ce {
+  display: block;
+  width: 100%;
+  background: #0b1411;
+  color: var(--tx);
+  border: 1px solid var(--line);
+  border-top: 0;
+  margin: 0;
+  padding: 10px 12px;
+  font: 13px/1.6 var(--mono);
+  tab-size: 4;
+  white-space: pre;
+  overflow-wrap: normal;
+  resize: none;
+  overflow: auto;
+  max-height: 60vh;
+  outline: 0;
+  caret-color: var(--acc);
+}
 .bar {
   display: flex;
   align-items: center;

@@ -1,7 +1,7 @@
 // App shell: boot, view switching, sidebar state, sync indicator, shortcuts.
 import { $, $$, el, btn, toast, debounce } from "./util.js";
 import { S, cur, openNotebook, allFolders } from "./state.js";
-import { start, saveNow, saveProfile, dueNow, pendingCount } from "./store.js";
+import { start, saveNow, saveProfile, dueNow, pendingCount, pendingIds, mergeSnapshots } from "./store.js";
 import * as ed from "./editor.js";
 import { renderFiles, newGroup } from "./sidebar.js";
 import { runSearch, openSearch, closeSearch, step } from "./search.js";
@@ -25,10 +25,20 @@ function boot() {
     }
     if (nbs) {
       const had = S.notebooks.length;
-      S.notebooks = nbs;
-      if (!S.cur || !nbs.some((x) => x.id === S.cur)) S.cur = nbs[0]?.id || null;
+      // Never let a snapshot echo clobber live edits: merge keeps the editor's
+      // own copy of any notebook with un-flushed writes, and reports only
+      // genuinely different replacements so the view can refresh safely.
+      const { list, changed } = mergeSnapshots(S.notebooks, nbs, pendingIds());
+      S.notebooks = list;
+      if (!S.cur || !list.some((x) => x.id === S.cur)) S.cur = list[0]?.id || null;
       afterDataChange();
-      if (!had && nbs.length) ed.render(); // first load of cloud data
+      if (!had && list.length) {
+        ed.render(); // first load of cloud data
+      } else if (changed.includes(S.cur) && S.view === "editor") {
+        // the open notebook was updated elsewhere; resync the view so the
+        // editor is not left writing into a detached copy
+        ed.render();
+      }
     }
     if (meta) {
       S.online = !meta.fromCache || meta.hasPendingWrites === false ? !meta.fromCache : S.online;
