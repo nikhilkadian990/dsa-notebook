@@ -1,5 +1,5 @@
 // Left sidebar: IDE-style notebook tree inside folders, plus the tag index.
-import { el, btn, uid, toast, ask } from "./util.js";
+import { $, el, btn, uid, toast, ask } from "./util.js";
 import { S, cur, openNotebook, allFolders, notebooksIn, nbById, mark, allTags, findByTag, persistFolders } from "./state.js";
 import { freshNotebook, remove, save, normalize } from "./store.js";
 

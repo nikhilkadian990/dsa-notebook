@@ -28,13 +28,6 @@
         <button class="nav-b" data-v="revise" title="Revision">Revise</button>
       </nav>
       <span class="sep"></span>
-      <div class="tgrp" role="group" aria-label="Insert">
-        <button class="b" id="bh" title="Heading (Alt+H)">Heading</button>
-        <button class="b" id="bc" title="Code block (Alt+C)">Code</button>
-        <button class="b" id="bl" title="Add link">Link</button>
-        <button class="b" id="bi" title="Image (Alt+I)">Image</button>
-        <button class="b" id="bv" title="Visual block (Alt+V)">Visual</button>
-      </div>
       <span class="sp"></span>
       <button class="b" id="bai" title="Generate a ready-to-copy AI prompt for this note">✦ AI</button>
       <button class="b" id="brv" title="Revision">↻ Review</button>
@@ -58,10 +51,6 @@
       </div>
       <div id="flist"></div>
       <button id="fopen" title="Show notebooks (Alt+1)">»</button>
-      <div class="pad small dim hint">
-        Ctrl+K palette · Ctrl+F search · Alt+N new · Alt+C code · Alt+H heading ·
-        Alt+1/2/3 sidebars · Alt+↑/↓ headings
-      </div>
     </nav>
 
     <!-- ===================== main ===================== -->
@@ -74,6 +63,17 @@
       </div>
       <div id="sresults" class="hidden"></div>
       <div id="metabar"></div>
+      <div id="insertbar" class="hidden">
+        <button class="b sm" id="ibh" title="Heading (Alt+H)">+ Heading</button>
+        <button class="b sm" id="ibc" title="Code block (Alt+C)">+ Code</button>
+        <button class="b sm" id="ibl" title="Add link">+ Link</button>
+        <button class="b sm" id="ibi" title="Image (Alt+I)">+ Image</button>
+        <button class="b sm" id="ibv" title="Visual block (Alt+V)">+ Visual</button>
+        <span class="sp"></span>
+        <button class="b sm" id="ibai" title="Generate a ready-to-copy AI prompt for this note">✦ AI prompt</button>
+        <button class="b sm" id="ibrv" title="Turn this note into a self-test">◈ Recall</button>
+        <button class="b sm" id="ibex" title="Export this notebook">⇩ Export</button>
+      </div>
       <div id="docWrap">
         <div id="doc"><div id="page"></div></div>
       </div>

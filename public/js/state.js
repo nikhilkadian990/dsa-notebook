@@ -1,4 +1,5 @@
 // In-memory application state + derived helpers.
+import { $ } from "./util.js";
 import { save, saveProfile, STRENGTH_LABEL, STATUS_LABEL } from "./store.js";
 
 export const S = {

@@ -12,6 +12,7 @@
     "test": "node --test test/"
   },
   "devDependencies": {
-    "firebase-tools": "^13.0.0"
+    "firebase-tools": "^13.0.0",
+    "jsdom": "^30.1.1"
   }
 }

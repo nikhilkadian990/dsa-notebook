@@ -1,6 +1,6 @@
 // Notebook-wide search. Ctrl+F shows results from the current notebook first,
 // then every other notebook, with snippets; Enter/Shift+Enter walks the list.
-import { el, toast } from "./util.js";
+import { $, el, toast } from "./util.js";
 import { S, cur, nbById, plainText, titleOf } from "./state.js";
 
 let M = [], mi = -1, panel = null;

@@ -1,7 +1,7 @@
 // Per-notebook problem metadata: status, knowledge state, difficulty, source,
 // problem link, tags, related notebooks, mistakes and the "why does this work?" prompt.
 // Kept deliberately compact — one collapsible strip above the page.
-import { el, btn, uid, toast, when, DAY } from "./util.js";
+import { $, el, btn, uid, toast, when, DAY } from "./util.js";
 import { S, cur, mark, allTags, nbById, titleOf } from "./state.js";
 import { STRENGTHS, STATUSES, STRENGTH_LABEL, STATUS_LABEL, save, recordReview, dueNow } from "./store.js";
 import { openSearch } from "./search.js";

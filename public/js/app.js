@@ -1,7 +1,7 @@
 // App shell: boot, view switching, sidebar state, sync indicator, shortcuts.
 import { $, $$, el, btn, toast, debounce } from "./util.js";
 import { S, cur, openNotebook, allFolders } from "./state.js";
-import { start, saveNow, saveProfile, dueNow } from "./store.js";
+import { start, saveNow, saveProfile, dueNow, pendingCount } from "./store.js";
 import * as ed from "./editor.js";
 import { renderFiles, newGroup } from "./sidebar.js";
 import { runSearch, openSearch, closeSearch, step } from "./search.js";
@@ -44,14 +44,32 @@ function boot() {
   renderMeta();
   renderFiles();
   syncUI();
+  syncInsertBar();
+
+  // keep the sync pill honest: re-check pending writes after each debounce flush
+  setInterval(() => { if (S.view === "editor") syncUI(); }, 5000);
+  // flush pending edits when the tab is hidden or loses focus, so nothing is
+  // left sitting in the 20s debounce window
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") saveNow(cur());
+  });
 }
 
 /* Called after any structural data change (new/delete/import/tag edits). */
 export function afterDataChange() {
   renderFiles();
   renderMeta();
+  syncInsertBar();
   if (S.view === "tags") renderTags();
   if (S.view === "dashboard") renderDashboard();
+}
+
+/** The insert bar sits with the open notebook, so it only appears in the editor
+ *  view and only when there is a notebook to insert into. */
+export function syncInsertBar() {
+  const bar = $("#insertbar");
+  if (!bar) return;
+  bar.classList.toggle("hidden", S.view !== "editor" || !cur());
 }
 
 /* ===================== views ===================== */
@@ -66,6 +84,7 @@ export function showView(v) {
   if (v === "dashboard") renderDashboard();
   if (v === "settings") renderSettings();
   if (editing) { ed.render(); renderMeta(); }
+  syncInsertBar();
 }
 
 export function showEditor() {
@@ -127,18 +146,19 @@ function syncUI(meta) {
   const s = $("#st");
   if (!s) return;
   if (!auth.currentUser) { s.textContent = "● signing in…"; s.className = "pill warn"; return; }
+  // edits waiting for the debounce count as pending, so the pill reflects reality
+  if (pendingCount()) { s.textContent = "● saving…"; s.className = "pill warn"; return; }
   if (meta?.fromCache) { s.textContent = "◍ offline — queued locally"; s.className = "pill warn"; return; }
-  if (pendingWrites()) { s.textContent = "● syncing…"; s.className = "pill warn"; return; }
   s.textContent = "✓ synced"; s.className = "pill ok";
 }
-const pendingWrites = () => $$(".tb textarea").some((t) => t.dataset.dirty === "1") || S.dirty;
 
 /* ===================== background: stars + forest ===================== */
 function sky() {
   const c = $("#sky");
   if (!c) return;
-  const x = c.getContext("2d"),
-    w = (c.width = innerWidth),
+  const x = c.getContext("2d");
+  if (!x) return; // canvas unsupported (or blocked) — the app still works without the backdrop
+  const w = (c.width = innerWidth),
     h = (c.height = innerHeight);
   const g = x.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, "#070d14");
@@ -169,11 +189,15 @@ function sky() {
 
 /* ===================== wiring ===================== */
 function wire() {
-  $("#bh").onclick = ed.insHeading;
-  $("#bi").onclick = () => $("#imgf").click();
-  $("#bv").onclick = () => ed.visDlg(null);
-  $("#bc").onclick = () => ed.insCode();
-  $("#bl").onclick = () => ed.insertLink();
+  // insert actions live in the contextual insert bar above the open notebook
+  $("#ibh").onclick = ed.insHeading;
+  $("#ibc").onclick = () => ed.insCode();
+  $("#ibl").onclick = () => ed.insertLink();
+  $("#ibi").onclick = () => $("#imgf").click();
+  $("#ibv").onclick = () => ed.visDlg(null);
+  $("#ibai").onclick = () => import("./ai.js").then((m) => m.promptDialog(cur()));
+  $("#ibrv").onclick = () => import("./recall.js").then((m) => m.start(cur()));
+  $("#ibex").onclick = exportDialog;
   $("#bf").onclick = () => openSearch();
   $("#bai").onclick = () => import("./ai.js").then((m) => m.promptDialog(cur()));
   $("#brv").onclick = () => import("./revise.js").then((m) => m.openRevise());

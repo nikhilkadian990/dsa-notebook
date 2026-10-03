@@ -101,8 +101,12 @@ export async function saveProfile(patch) {
   } catch (e) { /* offline queue */ }
 }
 
-const pending = new Map(); // nbId -> {fields, timer}
-const SAVE_MS = 900;
+const pending = new Map(); // nbId -> {fields, timer, resolve}
+// Firestore's free tier allows 20k writes/day. A 20s debounce keeps an intensive
+// full-day writing session comfortably inside that budget: even one write every
+// 20s for 16 hours is under 3k writes, while edits during normal typing coalesce
+// into a single write per notebook per pause.
+export const SAVE_MS = 20000;
 
 /** Debounced write-through of the dirty fields of one notebook. */
 export function save(nb, fields = null) {
@@ -115,6 +119,9 @@ export function save(nb, fields = null) {
   clearTimeout(p.timer);
   p.timer = setTimeout(() => flush(nb.id), SAVE_MS);
 }
+
+/** Number of notebooks with unsaved edits waiting for the debounce. */
+export const pendingCount = () => pending.size;
 
 async function flush(nbId) {
   const p = pending.get(nbId);
@@ -164,4 +171,15 @@ export function recordReview(nb, strengthBefore, grade) {
   return nb.meta.strength;
 }
 
-export const dueNow = (nb) => nb.dueAt ? nb.dueAt <= Date.now() : true;
+/** A notebook is due when its scheduled review has come up AND it actually has
+ *  something to review. Brand-new or empty notebooks never show up in revision. */
+export function dueNow(nb) {
+  if (!nb || !hasContent(nb)) return false;
+  return nb.dueAt ? nb.dueAt <= Date.now() : nb.meta.status === "revised" || nb.meta.status === "strong";
+}
+
+/** Does this notebook contain anything worth reviewing? */
+export function hasContent(nb) {
+  return (nb.blocks || []).some((b) =>
+    (b.t === "text" || b.t === "code" ? b.v : b.t === "h" ? b.v : "").trim().length > 0);
+}

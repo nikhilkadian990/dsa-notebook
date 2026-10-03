@@ -1,7 +1,7 @@
 // Settings: AI providers, revision preferences, backup, interface prefs,
 // keyboard shortcuts, and the account section that makes an anonymous notebook
 // recoverable.
-import { el, btn, toast } from "./util.js";
+import { $, el, btn, toast } from "./util.js";
 import { S } from "./state.js";
 import {
   aiConfig, providers, aiEnabled, PRESETS,

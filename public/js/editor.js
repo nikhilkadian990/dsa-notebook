@@ -8,7 +8,7 @@
 //   img  {src,name}          image
 //   vis  {code,h,name}       sandboxed iframe visual (source kept in the notebook)
 
-import { el, btn, uid, toast, dl } from "./util.js";
+import { $, el, btn, uid, toast, dl } from "./util.js";
 import { hl, code as hlCode, md } from "./md.js";
 import { cur, mark, nbById, S } from "./state.js";
 

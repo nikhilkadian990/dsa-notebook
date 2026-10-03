@@ -68,7 +68,7 @@ export function openPalette(initial) {
         class: "pal-i" + (i === sel ? " on" : ""),
         onclick: () => { d.close(); it.f(); },
       }, el("span", { text: it.t }), el("span", { class: "sp" }), el("span", { class: "dim small", text: it.s || "" }))));
-    box.children[sel]?.scrollIntoView({ block: "nearest" });
+    box.children[sel]?.scrollIntoView?.({ block: "nearest" });
   };
 
   inp.addEventListener("input", () => { sel = 0; build(); });

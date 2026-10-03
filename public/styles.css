@@ -230,6 +230,20 @@ body {
 #docWrap { flex: 1; display: flex; min-height: 0; flex-direction: column; }
 #view { flex: 1; overflow: auto; padding: 18px 22px 40vh; max-width: 900px; width: 100%; margin: 0 auto; }
 
+/* contextual insert bar — sits with the open notebook, not in the global toolbar */
+#insertbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  background: rgba(13, 20, 18, 0.94);
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+#insertbar::-webkit-scrollbar { display: none; }
+
 /* search bar */
 #sb {
   display: flex;

@@ -1,5 +1,5 @@
 // Secondary views: the tag index and the lightweight dashboard.
-import { el, btn, toast, when, DAY, plural } from "./util.js";
+import { $, el, btn, toast, when, DAY, plural } from "./util.js";
 import { S, cur, nbById, titleOf, allTags, findByTag, openNotebook, notebooksIn } from "./state.js";
 import { dueNow } from "./store.js";
 
@@ -75,6 +75,8 @@ export function renderDashboard() {
     qBtn("# Browse tags", allTags().length + " tags", () => import("./app.js").then((m) => m.showView("tags"))),
     qBtn("✦ AI prompt", "for this note", () => f && import("./ai.js").then((m) => m.promptDialog(f))),
     qBtn("◈ Recall", "this note", () => f && import("./recall.js").then((m) => m.start(f))),
+    qBtn("⇩ Export", "backup all", () => import("./io.js").then((m) => m.exportDialog())),
+    qBtn("⚙ Settings", "AI, backup, prefs", () => import("./app.js").then((m) => m.showView("settings"))),
   );
   host.append(quick);
 
