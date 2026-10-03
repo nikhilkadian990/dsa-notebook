@@ -190,6 +190,29 @@ check("rapid open+close keeps the toolbar closed", heads[0].querySelector(".nh-b
   check("adding a second headline keeps the note above", $("#page").textContent.includes("hash map: O(n) — live edits"));
 }
 
+/* ---------- pasting text: no phantom line, caret at the end of the paste ---------- */
+{
+  const ta = $$("#page .tb textarea")[0];
+  ta.value = "before";
+  ta.selectionStart = ta.selectionEnd = 6;
+  // a copied block on Windows: CRLF line endings plus a trailing blank line
+  const ev = new dom.window.Event("paste", { bubbles: true, cancelable: true });
+  ev.clipboardData = { getData: (t) => (t === "text/plain" ? "pasted line\r\nmore\r\n\r\n" : "") };
+  ta.dispatchEvent(ev);
+  await flush();
+  check("paste drops the trailing blank lines", ta.value === "beforepasted line\nmore", JSON.stringify(ta.value));
+  check("paste normalizes CRLF line endings", !ta.value.includes("\r"));
+  check("the caret lands at the end of the pasted text", ta.selectionStart === ta.value.length, "@" + ta.selectionStart);
+  const nb = S.notebooks.find((x) => x.name === "DSA/Arrays.md");
+  check("the cleaned paste reaches the block", nb.blocks.some((b) => b.t === "text" && b.v === "beforepasted line\nmore"));
+
+  // already-clean text is left to the browser's native paste
+  const clean = new dom.window.Event("paste", { bubbles: true, cancelable: true });
+  clean.clipboardData = { getData: (t) => (t === "text/plain" ? " clean" : "") };
+  ta.dispatchEvent(clean);
+  check("an already-clean paste is handled natively", !clean.defaultPrevented);
+}
+
 /* ---------- search ---------- */
 const search = await import("../public/js/search.js");
 search.openSearch();

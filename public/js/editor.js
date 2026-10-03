@@ -102,6 +102,24 @@ function mk(b, i) {
   return mkText({ t: "text", v: "" }, i);
 }
 
+/** Clean text coming in from the clipboard before it lands in a block: Windows
+ *  line endings (and a lone CR) become \n, and trailing blank lines are dropped.
+ *  Without this, a copied block carries an invisible trailing newline and the
+ *  caret ends up on a phantom empty line below the pasted text — with
+ *  backspace quietly deleting characters from the line above it. */
+function cleanPaste(e, ta) {
+  const cd = e.clipboardData;
+  const data = cd?.getData("text/plain") ?? cd?.getData("text");
+  if (!data) return;
+  const clean = data.replace(/\r\n?/g, "\n").replace(/\n+$/, "");
+  if (clean === data) return; // already clean: let the browser paste natively
+  e.preventDefault();
+  const s = ta.selectionStart, en = ta.selectionEnd;
+  ta.value = ta.value.slice(0, s) + clean + ta.value.slice(en);
+  ta.selectionStart = ta.selectionEnd = s + clean.length;
+  fireInput(ta);
+}
+
 function mkText(b, i) {
   const pre = el("pre");
   const ta = el("textarea", {
@@ -120,6 +138,7 @@ function mkText(b, i) {
   });
   ta.addEventListener("focus", () => (last = { i, ta }));
   ta.addEventListener("keydown", (e) => textKeys(e, ta, i));
+  ta.addEventListener("paste", (e) => cleanPaste(e, ta));
   return el("div", { class: "tb" }, pre, ta);
 }
 
@@ -264,6 +283,7 @@ function mkCode(b, i) {
     mark(cur());
   });
   ta.addEventListener("keydown", (e) => codeKeys(e, ta, i));
+  ta.addEventListener("paste", (e) => cleanPaste(e, ta));
   ta.addEventListener("blur", end);
   // click the highlighted block to edit it in place
   pre.addEventListener("click", begin);
