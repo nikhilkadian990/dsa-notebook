@@ -166,6 +166,7 @@ function mkHeading(b, i) {
         pageEl().querySelectorAll(".nh-body").forEach((x) => x.classList.add("hidden"));
         body.classList.toggle("hidden", !was);
         if (was) build(); // was hidden → we are opening: (re)build the toolbar
+        else buildToken++; // closing: cancel any in-flight build
       },
     }),
     inp,
@@ -174,9 +175,16 @@ function mkHeading(b, i) {
   const body = el("div", { class: "nh-body hidden" });
   wrap.append(head, body);
 
-  // the toolbar is built lazily, and rebuilt on open so it never goes stale
+  // the toolbar is built lazily, and rebuilt on open so it never goes stale.
+  // Guarded with a token: if the strip is closed again before the async build
+  // lands, the build is discarded instead of re-opening the toolbar.
+  let buildToken = 0;
   function build() {
-    import("./meta.js").then((m) => m.renderNoteBar(cur(), b, body, () => refreshPills()));
+    const token = ++buildToken;
+    import("./meta.js").then((m) => {
+      if (token !== buildToken || body.classList.contains("hidden")) return;
+      m.renderNoteBar(cur(), b, body, () => refreshPills());
+    });
   }
 
   function refreshPills() {

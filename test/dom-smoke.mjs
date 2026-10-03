@@ -99,6 +99,12 @@ await flush();
 heads[0].querySelector(".nh-btn").click();
 await flush();
 check("clicking the toggle again closes the toolbar", heads[0].querySelector(".nh-body").classList.contains("hidden"));
+// rapid open→close must not let the async build re-open it
+heads[0].querySelector(".nh-btn").click();
+heads[0].querySelector(".nh-btn").click();
+await flush();
+await new Promise((r) => setTimeout(r, 250));
+check("rapid open+close keeps the toolbar closed", heads[0].querySelector(".nh-body").classList.contains("hidden"));
 
 /* ---------- link blocks: slim, own line, opens in a new tab ---------- */
 {
