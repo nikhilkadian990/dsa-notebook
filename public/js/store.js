@@ -79,6 +79,7 @@ export function normalize(n) {
     if (b.t === "img") { b.src = b.src || ""; b.name = b.name || "image"; }
     if (b.t === "vis") { b.code = b.code || ""; b.name = b.name || ""; b.h = b.h || 320; }
     if (b.t === "code") { b.v = String(b.v ?? ""); b.lang = b.lang || ""; b.open = b.open ?? true; }
+    if (b.t === "link") { b.v = String(b.v ?? ""); b.label = String(b.label ?? ""); }
   }
   // one-time migration: legacy notebook-level meta lands on the first note
   const firstH = nb.blocks.find((b) => b.t === "h");

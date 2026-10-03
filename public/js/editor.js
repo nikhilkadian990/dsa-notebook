@@ -94,6 +94,7 @@ function mk(b, i) {
   switch (b.t) {
     case "text": return mkText(b, i);
     case "h": return mkHeading(b, i);
+    case "link": return mkLink(b, i);
     case "code": return mkCode(b, i);
     case "img": return mkImg(b, i);
     case "vis": return mkVis(b, i);
@@ -157,13 +158,14 @@ function mkHeading(b, i) {
   const wrap = el("div", { class: "nh" });
   const head = el("div", { class: "nh-h" },
     el("button", {
-      class: "ib nh-btn", title: "Note settings — link, difficulty, stage, tags, recall", text: "⋮",
+      class: "ib nh-btn", title: "Note settings — link, difficulty, stage, tags, recall", text: "☰",
       onclick: (e) => {
         e.stopPropagation();
         const was = body.classList.contains("hidden");
         // only one note strip open at a time, like an IDE's inline toolbar
         pageEl().querySelectorAll(".nh-body").forEach((x) => x.classList.add("hidden"));
         body.classList.toggle("hidden", !was);
+        if (was) build(); // was hidden → we are opening: (re)build the toolbar
       },
     }),
     inp,
@@ -172,9 +174,10 @@ function mkHeading(b, i) {
   const body = el("div", { class: "nh-body hidden" });
   wrap.append(head, body);
 
-  // the toolbar is built lazily and rebuilt on open so it never goes stale
-  head.querySelector(".nh-btn").addEventListener("click", () =>
-    import("./meta.js").then((m) => m.renderNoteBar(cur(), b, body, () => refreshPills())));
+  // the toolbar is built lazily, and rebuilt on open so it never goes stale
+  function build() {
+    import("./meta.js").then((m) => m.renderNoteBar(cur(), b, body, () => refreshPills()));
+  }
 
   function refreshPills() {
     const host = head.querySelector('[data-pills]');
@@ -373,6 +376,54 @@ export function navH(d) {
 }
 
 /* ---------- internal + external links ---------- */
+
+/** A link is its own slim block: one line, sits between text rows, opens in a
+ *  new tab on click. Inside text it stays inline markdown. */
+function mkLink(b, i) {
+  const href = String(b.v || "");
+  const label = String(b.label || href).trim() || href;
+  const isInt = href.startsWith("@nb:") || href.startsWith("@h:");
+  const clean = isInt ? label : href.replace(/^https?:\/\//, "").replace(/\/$/, "");
+
+  const follow = (e) => {
+    e.stopPropagation();
+    followLink(href);
+  };
+  const box = el("div", { class: "lblk" + (isInt ? " int" : "") },
+    el("span", { class: "lic", text: isInt ? "⧉" : "↗" }),
+    el("span", { class: "lt", text: label }),
+    el("span", { class: "lu dim", text: clean }),
+    el("span", { class: "sp" }),
+    el("button", { class: "ib", title: "Edit link", text: "✎", onclick: (e) => { e.stopPropagation(); editLink(b); } }),
+    el("button", { class: "ib", title: "Delete link", text: "✕", onclick: (e) => { e.stopPropagation(); rm(i); } }),
+  );
+  box.title = isInt ? "Internal link to " + label : href;
+  box.addEventListener("click", follow);
+  return box;
+}
+
+function editLink(b) {
+  const v = ask("Link target — paste a URL, or type @ to link another notebook:", b.v || "https://");
+  if (v === null) return;
+  const t = v.trim();
+  if (!t) return;
+  if (t === "@") {
+    const f = cur();
+    const opts = S.notebooks.filter((x) => x.id !== f?.id);
+    if (!opts.length) return toast("No other notebooks yet");
+    const list = opts.map((x, k) => `${k + 1}. ${x.name}`).join("\n");
+    const pick = window.prompt("Choose a notebook:\n" + list, "1");
+    const n = parseInt(pick, 10) - 1;
+    if (isNaN(n) || !opts[n]) return;
+    b.v = "@nb:" + opts[n].id;
+    b.label = b.label || opts[n].name.replace(/\.(md|txt)$/i, "");
+  } else {
+    b.v = t;
+  }
+  mark(cur());
+  render();
+}
+
 /** Resolve clicks on rendered links. The textarea sits above the mirror, so plain
  *  clicks edit; Alt+Click follows the link underneath the caret. */
 export function handleLinkClick(e) {
@@ -395,18 +446,13 @@ export function followLink(href) {
   }
 }
 
-export function insertLink() {
-  // Inline markdown link at the caret; internal links pick a notebook from a list.
-  const ta = last?.ta;
-  const text = (window.prompt("Link text (leave blank to use the URL/notebook name):", "") || "").trim();
-  const target = window.prompt(
-    "Link target:\n• paste a URL for an external link\n• type @ to choose another notebook in this notebook collection",
-    "https://",
-  );
+export function insertLink(ta) {
+  // Insert a dedicated slim link block (its own line, click-to-open). If a text
+  // selection exists, the link is dropped inline at the caret instead.
+  const target = ask("Link target:\n• paste a URL for an external link\n• type @ to choose another notebook", "https://");
   if (target === null) return;
   const t = target.trim();
   if (!t) return;
-  let href = t;
   if (t === "@") {
     const f = cur();
     const opts = S.notebooks.filter((x) => x.id !== f?.id);
@@ -415,22 +461,10 @@ export function insertLink() {
     const pick = window.prompt("Choose a notebook:\n" + list, "1");
     const n = parseInt(pick, 10) - 1;
     if (isNaN(n) || !opts[n]) return;
-    href = "@nb:" + opts[n].id;
-    const label = text || opts[n].name.replace(/\.(md|txt)$/i, "");
-    injectLink(ta, label, href);
+    const label = (ask("Link text (leave blank to use the notebook name):", "") || "").trim();
+    insertBlock({ t: "link", v: "@nb:" + opts[n].id, label: label || opts[n].name.replace(/\.(md|txt)$/i, "") });
     return;
   }
-  injectLink(ta, text || t.replace(/^https?:\/\//, ""), href);
-}
-
-function injectLink(ta, label, href) {
-  const md = `[${label}](${href})`;
-  if (!ta) { insertBlock({ t: "text", v: md }); return; }
-  const p = ta.selectionStart;
-  const b = cur().blocks.find((x, i) => i === last.i);
-  if (!b) { insertBlock({ t: "text", v: md }); return; }
-  b.v = b.v.slice(0, p) + md + b.v.slice(p);
-  mark(cur());
-  render();
-  focusAt(last.i, p + md.length);
+  const label = (ask("Link text (leave blank to show the URL):", "") || "").trim();
+  insertBlock({ t: "link", v: t, label });
 }

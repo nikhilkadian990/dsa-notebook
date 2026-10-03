@@ -61,6 +61,7 @@ function searchNotebook(nb, q) {
       const h = b.t === "h" ? b : noteOf(nb, i);
       M.push({
         nb: nb.id, i, p, n: q.length, html: snippet(v, p, q.length),
+        hit: v.slice(p, p + q.length), // exact matched text, to relocate the block
         note: h ? noteTitle(h) : null,
         here: nb.id === S.cur,
       });
@@ -69,11 +70,11 @@ function searchNotebook(nb, q) {
   // tag hits count too — notebook-level and note-level
   const tagHits = (nb.tags || []).filter((t) => t.toLowerCase().includes(q));
   if (tagHits.length)
-    M.push({ nb: nb.id, i: -1, p: 0, n: q.length, html: "tagged " + tagHits.map((t) => "<mark>#" + esc(t) + "</mark>").join(" "), note: null, here: nb.id === S.cur });
+    M.push({ nb: nb.id, i: -1, p: 0, n: q.length, html: "tagged " + tagHits.map((t) => "<mark>#" + esc(t) + "</mark>").join(" "), hit: null, note: null, here: nb.id === S.cur });
   for (const b of (nb.blocks || [])) {
     const hits = (b.meta?.tags || []).filter((t) => t.toLowerCase().includes(q));
     if (hits.length)
-      M.push({ nb: nb.id, i: nb.blocks.indexOf(b), p: 0, n: q.length, html: "note tagged " + hits.map((t) => "<mark>#" + esc(t) + "</mark>").join(" "), note: b.t === "h" ? noteTitle(b) : null, here: nb.id === S.cur });
+      M.push({ nb: nb.id, i: nb.blocks.indexOf(b), p: 0, n: q.length, html: "note tagged " + hits.map((t) => "<mark>#" + esc(t) + "</mark>").join(" "), hit: null, note: b.t === "h" ? noteTitle(b) : null, here: nb.id === S.cur });
   }
 }
 
@@ -123,15 +124,33 @@ function goto(m) {
   if (!n) return;
   const after = () => {
     const page = $("#page");
-    const c = page?.children[m.i];
-    if (c) {
-      c.scrollIntoView({ block: "center" });
-      const t = c.querySelector("textarea,input.hd");
-      if (t) {
-        t.focus();
-        if (t.tagName === "TEXTAREA" && m.p >= 0) {
-          try { t.setSelectionRange(m.p, Math.min(t.value.length, m.p + m.n)); } catch (e) {}
-        }
+    if (!page) return;
+    // The editor's norm() inserts empty text blocks, so data indices and DOM
+    // children don't line up. Locate the hit by its text in the rendered page.
+    const editables = [...page.querySelectorAll("textarea,input.hd")];
+    let t = null;
+    if (m.hit) {
+      const lower = m.hit.toLowerCase();
+      t = editables.find((x) => x.value.toLowerCase().includes(lower)) || null;
+    }
+    if (!t) t = editables.find((x) => x.tagName === "INPUT") || editables[0];
+    if (!t) return;
+    const c = t.closest(".tb,.nh") || t.parentElement;
+    // scroll inside the #doc viewport (the page itself isn't the scroller)
+    const doc = $("#doc");
+    if (doc && c) {
+      const top = Math.max(0, c.offsetTop - doc.clientHeight / 2 + c.clientHeight / 2);
+      const smooth = () => { try { doc.scrollTo({ top, behavior: "smooth" }); } catch (e) { doc.scrollTop = top; } };
+      smooth();
+    }
+    t.focus({ preventScroll: true });
+    if (t.tagName === "TEXTAREA" && m.hit) {
+      const at = t.value.toLowerCase().indexOf(m.hit.toLowerCase());
+      if (at >= 0) {
+        try { t.setSelectionRange(at, at + m.hit.length); } catch (e) {}
+        // briefly flash the row so the landing point is obvious
+        c?.classList.add("jumped");
+        setTimeout(() => c?.classList.remove("jumped"), 1200);
       }
     }
   };

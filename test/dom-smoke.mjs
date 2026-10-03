@@ -85,15 +85,37 @@ check("heading input carries the title", page?.querySelector("input.hd")?.value 
 /* ---------- metadata strip is gone; notes carry their own toolbar ---------- */
 const meta = await import("../public/js/meta.js");
 const heads = $$("#page .nh");
-check("heading renders as a note with a ⋮ button", heads.length >= 1 && !!heads[0].querySelector(".nh-btn"));
+check("heading renders as a note with a toggle button", heads.length >= 1 && !!heads[0].querySelector(".nh-btn"));
 check("note toolbar starts closed", heads.length >= 1 && !!heads[0].querySelector(".nh-body.hidden"));
 heads[0].querySelector(".nh-btn").click();
 await flush();
 {
   const body = heads[0].querySelector(".nh-body");
-  check("opening the ⋮ button reveals the inline toolbar", !body.classList.contains("hidden"));
+  check("opening the toggle reveals the inline toolbar", !body.classList.contains("hidden"));
   check("toolbar has the problem-link field", !!body.querySelector("input.min"));
   check("toolbar offers per-note recall", [...body.querySelectorAll("button")].some((b) => b.textContent.includes("Recall")));
+}
+// toggling closed again must actually close it
+heads[0].querySelector(".nh-btn").click();
+await flush();
+check("clicking the toggle again closes the toolbar", heads[0].querySelector(".nh-body").classList.contains("hidden"));
+
+/* ---------- link blocks: slim, own line, opens in a new tab ---------- */
+{
+  const before = $$("#page .lblk").length;
+  ed.insertBlock({ t: "link", v: "https://leetcode.com/problems/two-sum/", label: "Two Sum" });
+  await flush();
+  const lblk = $$("#page .lblk").pop();
+  check("inserting a link renders a slim one-line box", !!lblk && $$("#page .lblk").length === before + 1);
+  check("link box shows the label", lblk?.textContent.includes("Two Sum"));
+  check("link box shows the url", lblk?.textContent.includes("leetcode.com/problems/two-sum"));
+  let opened = null;
+  const win = dom.window.open;
+  dom.window.open = (u) => { opened = u; };
+  lblk.click();
+  dom.window.open = win;
+  check("clicking the link opens the url in a new tab", opened === "https://leetcode.com/problems/two-sum/", String(opened));
+  ed.rm($$("#page").length ? ed.pageEl().children.length - 1 : 0);
 }
 
 /* ---------- search ---------- */
@@ -177,16 +199,23 @@ check("revision queue excludes empty notebooks", !due.some((x) => x.nb.id === em
   single?.close();
 }
 
-/* ---------- search groups by notebook and highlights matches ---------- */
+/* ---------- search groups by notebook, highlights, and lands on the hit ---------- */
 {
   const search = await import("../public/js/search.js");
   search.openSearch();
-  $("#sq").value = "hash";
+  $("#sq").value = "hash map";
   search.runSearch();
   await flush();
   const sres = $("#sresults");
   check("search groups results by notebook", !!sres.querySelector(".sr-grp"));
   check("search highlights the matched term", !!sres.querySelector("mark"));
+  // clicking a result must focus the block that contains the match
+  sres.querySelector(".sr").click();
+  await flush();
+  const focused = dom.window.document.activeElement;
+  const focusedText = focused?.value || "";
+  check("clicking a result focuses the matched block", focused?.tagName === "TEXTAREA" && focusedText.toLowerCase().includes("hash map"),
+    focused ? focused.tagName + ": " + focusedText.slice(0, 30) : "nothing focused");
   search.closeSearch();
 }
 
